@@ -78,3 +78,237 @@ zod 4.6, framer-motion 14, Vitest 5.0 (Vite 8), Playwright 1.63, @gltf-transform
 plan pins a major (`@react-three/fiber v9`, `@react-three/drei v10`, Tailwind v4) the caret range
 enforces it.
 **Alternatives rejected:** floating ranges without a lockfile (non-reproducible installs).
+
+### D-009 · Design mockups live in `docs/ui-reference/`, gitignored from Prettier
+
+**What:** the human supplied the screen mockups plus brand documents; they live in
+`docs/ui-reference/` (each screen folder = `code.html` + `screen.png`), documented by a
+`README.md` inside that folder and listed as a contract file in `AGENTS.md`. The folder is added
+to `.prettierignore`. The pack was re-supplied on 2026-10-04 in a new shape — four sibling
+exports, each nesting `stitch_vend3d_3d_storefront_customizer/` — and the folder README plus
+D-012 now describe that layout.
+**Why:** `ARCHITECTURE.md` §12 already reserves `docs/` for non-shipped material, so the pack
+sits there rather than in `public/` (which would bundle ~9 MB of PNGs into the production
+build and serve them to visitors) or `src/` (which would pollute the import graph). The
+`.prettierignore` entry is required because `npm run format` runs `prettier --write .` and
+Prettier formats `.html`/`.md` — without it, every mockup would be rewritten in place.
+**Alternatives rejected:** `public/ui-reference/` (ships to production); `src/components/mockups/`
+(enters the type-check and import graph); gitignoring the pack (future agents and CI would
+have no design reference, and a dead external design link is worse than a stale image).
+
+### D-010 · Conflicting design tokens in `DESIGN.md` resolved in favour of the prose
+
+**What:** `DESIGN.md` specifies some tokens twice with different values — accent lime
+`#c2ed30` (frontmatter) vs `#C6F135` (prose), background `#131315` vs `#0A0A0B`, surface
+`#131315` vs `#121214`, raised surface `#39393b` vs `#1A1A1D`, text primary `#e5e1e4` vs
+`#EDEDED`, text-muted `#c7c7bf` vs `#7C7C82`, plus a `rounded` scale that does not yield the
+prose radii (16px inputs, 28–32px panels). Phase 1 wrote the **prose** values into
+`src/app/globals.css`: `--stage #0A0A0B`, `--deck #121214`, `--glass #1A1A1D`, hairline
+`rgba(255,255,255,0.08)`, foreground `#EDEDED`, muted `#7C7C82`, `--signal #C6F135`,
+`--radius: 1rem` (16px, so `rounded-lg` is the input radius) with panels written as explicit
+`rounded-[28px]` / `rounded-[32px]`. The conflict table is reproduced in
+`docs/ui-reference/README.md`.
+**Why:** the human was asked to settle it (D-010 originally blocked Phase 1 on this) and the
+pack README plus the DESIGN.md prose itself both declare the prose canonical; the frontmatter
+is a machine export of a different palette generation and disagrees on eight tokens. Guessing
+between two documented brand values would bake a silent design decision into every later
+screen.
+**Alternatives rejected:** picking the frontmatter values (it is a machine export, and it
+contradicts the written spec on eight tokens); averaging the values (inventing a third brand);
+blocking the phase again (the human has now ruled, and the rule is documented).
+
+### D-011 · `next.config.ts` no longer crashes the build on a malformed public URL
+
+**What:** the Supabase Storage `images.remotePatterns` derivation wraps `new URL(...)` in a
+`try/catch` and logs a length-only warning instead of throwing. `src/env.ts` remains the
+single validator and still fails the server boot naming the offending key.
+**Why:** the config module is loaded during `next build`, so a typo in
+`NEXT_PUBLIC_SUPABASE_URL` previously broke `npm run build` with a bare
+`TypeError: Invalid URL` — no key name, no hint. The warning deliberately prints only the
+character count, never the value, per `AGENTS.md` §0.1.
+**Alternatives rejected:** dropping the Supabase image pattern entirely (breaks Phase 4
+previews); validating inside the config and throwing (same unhelpful failure mode).
+
+---
+
+## Phase 1 — Project Scaffolding & Design System
+
+### D-012 · Two brand documents ship in the pack; the storefront one owns the global tokens
+
+**What:** the human re-supplied the mockup pack on 2026-10-04 as four sibling exports, and it
+now contains **two** brand documents: `vend3d/DESIGN.md` ("Vend3D" — Geist, storefront, dark
+obsidian) and `vend3d_studio/DESIGN.md` ("Vend3D Studio" — Space Grotesk + Inter, CAD hairline
+studio). `globals.css` implements the **storefront** document only. The studio document's
+differing surfaces (`#0E0E0E`/`#161616`/`#1F1F1F`), 10–12px control radii and two-family type
+stack are recorded for Phases 5–6 rather than merged into the global tokens now.
+**Why:** the storefront and the 3D studio are two different surfaces in one product, and Phase 1
+only builds storefront chrome. Writing both sets into `:root` would mean every later screen has
+to remember which palette is in force — the exact "silent design decision" D-010 exists to
+avoid. Acid Lime `#C6F135` is identical in both documents, so the accent is genuinely global.
+**Alternatives rejected:** blending both into one token set (unusable, two bg values per
+element); ignoring the studio document (loses the reference for Phases 5–6); adding a runtime
+theme switch per route (scope creep for Phase 1).
+
+### D-013 · `src/components/ui/form.tsx` written by hand — the shadcn registry item is empty
+
+**What:** the `form` component was written directly instead of installed. Every other base
+component (button, input, card, dialog, dropdown-menu, sonner, skeleton, tabs, table, badge,
+label) came from `shadcn add`.
+**Why:** `shadcn view form` resolves to `{"type":"registry:ui"}` with no files, and
+`shadcn add form` exits 0 having written nothing (verified on CLI v4.21). The hand-written file
+is the canonical shadcn form API — `FormField`/`FormItem`/`FormLabel`/`FormControl`/
+`FormDescription`/`FormMessage` over `react-hook-form` — adapted to this repo's unified
+`radix-ui` and `cn` imports.
+**Alternatives rejected:** shipping Phase 1 without a form component (`plan.md` lists `form` as
+a Phase 1 deliverable, and Phase 3 login/signup need it); pinning an older CLI that still served
+the file (a dependency change for one component).
+
+### D-014 · Flat route tree in Phase 1; no `(store)` group yet
+
+**What:** routes live at `src/app/<route>` with no `(store)` route group, unlike the target
+directory map in `ARCHITECTURE.md` §12. Navbar, footer and the error boundary therefore render
+on every route, including `/checkout` and `/admin`.
+**Why:** the group exists to give the storefront a different shell from the app shell (a
+chrome-free checkout, a sidebar admin). Neither exists yet — `/checkout` is a placeholder and
+`/admin` gets its layout in Phase 10 — so the group would be an empty abstraction with one
+member. Splitting it later is a pure file move.
+**Alternatives rejected:** creating `(store)/` now with every route inside it (a group that does
+not change anything, and a move later anyway); hiding the chrome with per-route CSS (spookier
+than a route group).
+
+### D-015 · `next-themes` added and pinned to dark
+
+**What:** `next-themes@^0.4.6` is a dependency, and `src/components/theme-provider.tsx` renders
+`<ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} forcedTheme="dark">`.
+**Why:** the shadcn `sonner` component reads the theme from `next-themes`, and it is a Phase 1
+deliverable ("toast (sonner)"). Forcing dark matches DESIGN.md's "Dark Canvas (Default)" and
+removes an OS-dependent flash of the wrong canvas.
+**Alternatives rejected:** editing `sonner.tsx` to hardcode `theme="dark"` (breaks the shadcn
+file so a future `shadcn add` re-introduces the import); `enableSystem` (light mode would follow
+the OS against the brand default).
+
+### D-016 · Light canvas ships as an opt-in `.light` class, not a toggle
+
+**What:** `globals.css` defines the prose light-canvas values under `.light`; nothing in the app
+applies that class.
+**Why:** DESIGN.md documents a light canvas as an alternative, so the tokens belong in the file,
+but Phase 1 has no theme switch in scope and `plan.md` asks only for "dark theme tokens via CSS
+variables".
+**Alternatives rejected:** a light/dark toggle in the navbar (unrequested UI, and it would need
+the Phase 3 session to persist the choice); omitting the light values (loses documented brand
+work).
+
+### D-017 · No git pre-commit hook; `format:check` and `lint` are the gate
+
+**What:** no husky / lint-staged / pre-commit hook was added. Verification is
+`lint → typecheck → test → build → format:check`, matching `AGENTS.md` §2.3.
+**Why:** `plan.md` §2.3 lists "Prettier + pre-commit lint (`lint-staged` optional)" — the hook is
+explicitly optional, and adding husky means three more dev dependencies plus a `.husky` directory
+that `AGENTS.md` §3 wants justified in this file.
+**Alternatives rejected:** husky + lint-staged (three dependencies to save one manual command;
+Phase 13's GitHub Actions CI is the real enforcement point).
+
+### D-018 · Placeholder segment is `/products/[id]`, renamed to `[slug]` in Phase 4
+
+**What:** the Phase 1 detail placeholder is `src/app/products/[id]/page.tsx` and the catalog
+placeholder links to `/products/<slug>`.
+**Why:** `plan.md` Phase 1 names the route `/products/[id]`, while Phase 4 specifies
+`/products/[slug]` because lookups are by slug. Phase 1 must build exactly what the plan says;
+the rename in Phase 4 is a directory rename with no behaviour change.
+**Alternatives rejected:** building `[slug]` in Phase 1 (deviates from the phase's own task
+list); supporting both segments (two routes for one page).
+
+### D-019 · Landing-page prices are display strings, not `formatCents`
+
+**What:** the Phase 1 featured grid hardcodes `"$48.00"`-style strings. `src/lib/money.ts` and
+`formatCents()` are Phase 4 work; no arithmetic happens on money anywhere in Phase 1.
+**Why:** `AGENTS.md` §3 forbids floats for currency, which a display string trivially satisfies,
+and Phase 4 owns the single formatting helper the catalog and cart will share.
+**Alternatives rejected:** adding `formatCents` now (Phase 4 scope, and it would have no second
+caller to justify its API); deriving prices from a cents constant (money math outside the
+catalog's home).
+
+### D-020 · Type-scale utilities are prefixed `type-*`, not `text-*`
+
+**What:** the DESIGN.md type scale is exposed as `type-display-hero`, `type-headline-lg`,
+`type-title-md`, `type-body-md`, `type-label-sm` and friends (declared with
+`@utility` in `src/app/globals.css`), instead of Tailwind's default `--text-*` names.
+**Why:** `cn` (the shadcn v4 helper) runs tailwind-merge. tailwind-merge cannot know custom
+theme keys, so `text-title-md` was classified as an unknown **text colour** and, appearing after
+`text-primary-foreground`, silently replaced it. Every element mixing a custom size token with a
+colour lost its colour — the hero CTA rendered as a white pill with white text, and all
+`text-muted-foreground` body copy fell back to the default foreground. The failure is invisible in
+the DOM source and in typecheck, which is why it was caught by screenshotting the page rather than
+by the test suite.
+**Alternatives rejected:** dropping the type tokens and hardcoding `text-[64px]` everywhere
+(lose the documented scale and readability); removing `cn` in favour of plain `clsx` (loses
+conflict-free class merging that shadcn components depend on); configuring tailwind-merge with the
+custom type scale (`cn` is a third-party package, so its config is not ours to extend).
+
+### D-021 · The five product renders ship from `public/`, sourced from `docs/ui-reference/assets`
+
+**What:** `public/products/{heavyweight-boxy-tee,luna-glazed-mug,structured-6-panel-cap,insulated-steel-bottle}.png`
+(1024x1024) and `public/images/studio-scene.png` (1376x768) are the human-supplied product
+photography, copied out of the reference pack and imported through `next/image`.
+**Why:** the storefront cannot ship a hero or a collection grid without real product imagery, and
+these are the renders the human provided for exactly that purpose. Keeping the originals in
+`docs/ui-reference/assets/` preserves provenance; D-009's "never put the pack in `public/`" rule
+still holds for the mockup _screens_, which were removed instead (D-022).
+**Alternatives rejected:** generated SVG stand-ins (visually wrong next to real photography, and
+the human has the real assets); hotlinking Supabase Storage before Phase 2 exists (nothing to host
+them); shipping the mockup `screen.png` full-page captures as card images (a screenshot of a
+screenshot).
+**Known cost:** ~1.2 MB per source PNG. `next/image` serves optimised derivatives per request, and
+Phase 4 replaces these with the product previews seeded next to each GLB model.
+
+### D-022 · The superseded mockup pack was deleted
+
+**What:** the four `stitch_vend3d_3d_storefront_customizer*` export folders (30 screen mockups from
+the previous design generation) were deleted from `docs/ui-reference/`. What remains is
+`DESIGN.md`, `DESIGN_STUDIO.md`, `HOMEPAGE.md`, `assets/` (the five renders) and a README.
+**Why:** the human supplied a new storefront direction as full-scroll screens and asked for the pack
+to be reduced to what those screens need, stating further screens arrive section by section as each
+phase runs. Keeping ~9 MB of renders for a design that no longer exists invites the next agent to
+build the wrong thing — the exact failure D-009 was written to prevent.
+**Alternatives rejected:** keeping the screens under a `_superseded/` subfolder (still dead weight,
+and the human asked for removal); keeping only the storefront screens (they are the ones the new
+direction replaced).
+
+### D-023 · The reviews section was cut from the landing page
+
+**What:** the "Verified studio builds" block (4.9 summary card with distribution bars plus four
+review cards) was removed; the page now runs hero -> precision -> collection -> steps -> stats ->
+launch banner.
+**Why:** the human's revision removed it. Reviews/ratings are also listed as out of scope in
+`plan.md` §3, so a second, subtler reason applies: the launch banner already carries social proof
+(5.0 (28) plus three testimonials), and duplicating it invites scope creep into a feature the plan
+excludes.
+**Alternatives rejected:** keeping a single testimonial strip to replace the section (the launch
+banner already does this); keeping the section but hiding it (`hidden` markup that still ships).
+
+### D-024 · The logo mark is the supplied bitmap, cropped; the wordmark stays live text
+
+**What:** `public/brand/logo-mark.png` (376x409) is the isometric cube cropped out of
+`docs/ui-reference/logo.png` by clustering the lime pixels into columns and keeping the widest
+cluster (the cube, x 130-485), padded by 10px. `LogoMark` renders it through `next/image` at 22px
+tall in the navbar and 24px in the footer. The wordmark next to it is live text: `vend` in the
+primary text colour, `3d` in Acid Lime, Geist semibold with -0.03em tracking. The full lockup is
+also kept as `public/brand/logo-lockup.png` for social/OG use later.
+**Why:** an earlier hand-built SVG approximation was rejected by the human — the facet shading and
+the black Y across the top face are brand artwork, not geometry worth approximating. Keeping the
+wordmark as text means it inherits the font stack, stays selectable, scales cleanly and can be
+translated; the mark itself is a picture because it is a picture.
+**Alternatives rejected:** redrawing the cube in SVG (visually wrong, already attempted); using the
+whole lockup as one image (loses selectable, translatable text and breaks at small sizes); tracing
+the PNG into an SVG path by hand (no tooling, no benefit at 22px).
+
+### D-025 · Never run `next build` while `next dev` is running
+
+**What:** the verification chain must run `npm run build` with no dev server holding `.next`.
+**Why:** two failures during Phase 1 looked like source bugs and were not. With a dev server
+running, `npm run build` failed with `ENOENT .next/server/pages-manifest.json` and then, on a
+clean `.next`, with `Cannot find module for page: /_document` while prerendering `/404` and
+`/500`. Both are `.next` write races between the two processes; both disappeared once the dev
+server was stopped and `.next` removed.
+**Alternatives rejected:** separate build dirs per command (`distDir` juggling for a phase that
+does not need it); ignoring the error (AGENTS.md §4: never paper over a failure).

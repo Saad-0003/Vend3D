@@ -6,3 +6,6 @@ coverage
 package-lock.json
 prisma/migrations
 public/models/optimized
+
+# Reference mockups supplied by the human: read-only, never reformat or ship.
+docs/ui-reference

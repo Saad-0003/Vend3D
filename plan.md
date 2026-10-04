@@ -104,27 +104,27 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 **Tasks**
 
-- [ ] `create-next-app` with App Router, TS strict, Tailwind v4, ESLint, `/src` dir, import alias `@/*`
-- [ ] Init shadcn/ui; add base components: button, input, card, dialog, dropdown-menu, toast (sonner), skeleton, tabs, form, table, badge
-- [ ] `src/env.ts` zod-validated env; `.env.example`; Prettier + pre-commit lint (`lint-staged` optional)
-- [ ] Base layout: sticky navbar (logo, nav links, cart icon w/ count badge, auth buttons), footer, dark theme tokens via CSS variables
-- [ ] Route skeleton with placeholder pages: `/` `/products` `/products/[id]` `/customize/[productId]` `/cart` `/checkout` `/orders` `/designs` `/admin` `/login` `/signup`
-- [ ] Landing page: hero (static headline + CTA), featured-products placeholder grid, "how it works" 3-step strip — final copy can be lorem-free but simple
-- [ ] Git repo init, README with setup steps, `DECISIONS.md` created
+- [x] `create-next-app` with App Router, TS strict, Tailwind v4, ESLint, `/src` dir, import alias `@/*`
+- [x] Init shadcn/ui; add base components: button, input, card, dialog, dropdown-menu, toast (sonner), skeleton, tabs, form, table, badge
+- [x] `src/env.ts` zod-validated env; `.env.example`; Prettier + pre-commit lint (`lint-staged` optional)
+- [x] Base layout: sticky navbar (logo, nav links, cart icon w/ count badge, auth buttons), footer, dark theme tokens via CSS variables
+- [x] Route skeleton with placeholder pages: `/` `/products` `/products/[id]` `/customize/[productId]` `/cart` `/checkout` `/orders` `/designs` `/admin` `/login` `/signup`
+- [x] Landing page: hero (static headline + CTA), featured-products placeholder grid, "how it works" 3-step strip — final copy can be lorem-free but simple
+- [x] Git repo init, README with setup steps, `DECISIONS.md` created
 
 **Edge cases**
 
-- App must build with zero TS errors and zero ESLint errors from day one (`npm run build` in CI mode).
-- 404 (`not-found.tsx`) and global error boundary (`error.tsx`) with "try again" reset.
+- [x] App must build with zero TS errors and zero ESLint errors from day one (`npm run build` in CI mode).
+- [x] 404 (`not-found.tsx`) and global error boundary (`error.tsx`) with "try again" reset.
 
 **Tests**
 
-- [ ] Vitest smoke test renders landing page
-- [ ] Playwright: all skeleton routes return 200
+- [x] Vitest smoke test renders landing page
+- [x] Playwright: all skeleton routes return 200
 
 **Acceptance criteria**
 
-- [ ] `npm install && npm run dev` works from clean clone; all routes render placeholders; lint/typecheck green
+- [x] `npm install && npm run dev` works from clean clone; all routes render placeholders; lint/typecheck green
 
 ---
 
