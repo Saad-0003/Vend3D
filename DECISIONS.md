@@ -312,3 +312,56 @@ clean `.next`, with `Cannot find module for page: /_document` while prerendering
 server was stopped and `.next` removed.
 **Alternatives rejected:** separate build dirs per command (`distDir` juggling for a phase that
 does not need it); ignoring the error (AGENTS.md §4: never paper over a failure).
+
+### D-026 · Landing motion layer: framer-motion reveals + lenis smooth scrolling
+
+**What:** every landing section is wrapped in a `BlurFade` reveal (the hero fades up on mount; the
+other sections reveal on scroll via `inView` — 6px rise with a blur dissolve, ~0.4s ease-out, grid
+rows lagging their headers by 0.08s), and a `SmoothScroll` provider mounted in the root layout runs
+lenis inertial scrolling. Dependencies: `lenis@1.3.26` added (~33 KB unminified ESM + 0.5 KB CSS
+before minification); `motion@14` was installed and then **removed** — the three registry components
+that imported `motion/react` (`blur-fade`, `border-beam`, `number-ticker`) now import from
+`framer-motion`, the animation library pinned in `plan.md` §1 and already installed at the same
+`14.0.0`.
+**Why:** `plan.md` §1 names framer-motion as the animation library, so the pinned stack wins over
+the shadcn registry's newer `motion/react` import style — `motion` and `framer-motion` are the same
+codebase at the same version, and carrying both would be two names for one library with no bundle
+benefit (a one-line import swap per file). lenis is the one genuinely new dependency: client-only,
+imported solely by `SmoothScroll`, and it refuses to start when `prefers-reduced-motion: reduce` is
+set — silently overriding a user's scroll preference is exactly the kind of motion DESIGN.md's
+restraint rules exist to prevent.
+**Alternatives rejected:** keeping `motion` and dropping `framer-motion` (deviates from the pinned
+stack for import-style vanity); CSS-only IntersectionObserver reveals (bespoke code for the same
+effect, while framer-motion is already pinned for Phase 6 micro-interactions); running lenis
+unconditionally (scroll hijack for reduced-motion users); per-section scroll listeners (reinvents
+what lenis already does).
+**Bundle:** `/` First Load JS is 233 kB per `next build` — under the 250 KB storefront guard, and
+three.js still shares nothing with it (§6.5).
+
+### D-027 · Seven registry components ship as unused inventory
+
+**What:** `border-beam`, `hover-card`, `marquee`, `number-ticker`, `shimmer-button`, `slider` and
+`tooltip` were added to `src/components/ui/` alongside `blur-fade`, together with the `--animate-*`
+keyframes their animations need in `globals.css`. Only `blur-fade` is wired into the landing page;
+the other seven are compiled and linted but rendered nowhere.
+**Why:** each of the seven has no spec-compliant home on `/` today: `marquee` — the hero's spec
+strip is static and a perpetually running marquee cuts against "Invisibility over Decor";
+`shimmer-button` — homepage CTAs are `Link`-backed buttons per `HOMEPAGE.md`, and a shimmer implies
+a loading state that does not exist there; `number-ticker` — spec'd figures must not first paint as
+`0`; `border-beam` — an animated beam would spend Acid Lime as decoration (Accent Discipline);
+`slider`, `tooltip`, `hover-card` — Phase 6 studio controls and general-purpose UI with no
+`HOMEPAGE.md` slot. Keeping them means later phases place rather than repair them; forcing them
+onto `/` just to "use" them would violate the mockup-as-contract rule.
+**Alternatives rejected:** deleting them (each has a planned consumer and they cost nothing until
+imported); wiring all eight into `/` (invents UI the supplied mockups do not show).
+
+### D-028 · Prettier ignores the `.kilo` worktrees
+
+**What:** `.prettierignore` gained `.kilo` (Kilo Code agent worktrees).
+**Why:** `.kilo/worktrees/detailed-atrociraptor` is a separate checkout of this repo — a registered
+git worktree, already kept out of `git status` by `.git/info/exclude` and its own nested
+`.gitignore`. `npm run format:check` (D-017's gate) does not read git's ignore files and walked the
+stale worktree, failing on source this repo does not own.
+**Alternatives rejected:** deleting the worktree (it belongs to the human's other agent session);
+fixing its formatting (overwritten, and not this repo's source); hard-coded pathspecs in the npm
+script (fragile — `.prettierignore` is the tool's own mechanism).

@@ -1,4 +1,5 @@
 import { Crop, PenLine, SlidersHorizontal, Sun } from "lucide-react";
+import { BlurFade } from "@/components/ui/blur-fade";
 
 type Feature = {
   icon: typeof PenLine;
@@ -59,31 +60,35 @@ const features: Feature[] = [
 export function PrecisionGrid() {
   return (
     <section className="mx-auto w-full max-w-[1400px] px-6 py-24 md:px-8">
-      <header className="mx-auto flex max-w-2xl flex-col items-center gap-4 text-center">
-        <span className="text-signal text-[11px] tracking-[0.18em] uppercase">
-          Engineered precision
-        </span>
-        <h2 className="type-headline-lg-mobile md:type-headline-lg tracking-headline font-medium">
-          Built for tactile perfection.
-        </h2>
-        <p className="type-body-lg text-muted-foreground">
-          High fidelity physics engine simulating fabric gravity and pigment interaction.
-        </p>
-      </header>
+      <BlurFade inView direction="up">
+        <header className="mx-auto flex max-w-2xl flex-col items-center gap-4 text-center">
+          <span className="text-signal text-[11px] tracking-[0.18em] uppercase">
+            Engineered precision
+          </span>
+          <h2 className="type-headline-lg-mobile md:type-headline-lg tracking-headline font-medium">
+            Built for tactile perfection.
+          </h2>
+          <p className="type-body-lg text-muted-foreground">
+            High fidelity physics engine simulating fabric gravity and pigment interaction.
+          </p>
+        </header>
+      </BlurFade>
 
-      <ul className="mt-14 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {features.map((feature) => (
-          <li
-            key={feature.title}
-            className="bg-card ring-foreground/10 flex flex-col gap-4 rounded-[20px] p-6 ring-1"
-          >
-            <feature.icon className="text-signal size-5" strokeWidth={1.5} />
-            <div className="min-h-6">{feature.visual}</div>
-            <h3 className="type-title-md">{feature.title}</h3>
-            <p className="type-body-md text-muted-foreground">{feature.body}</p>
-          </li>
-        ))}
-      </ul>
+      <BlurFade inView direction="up" delay={0.08}>
+        <ul className="mt-14 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {features.map((feature) => (
+            <li
+              key={feature.title}
+              className="bg-card ring-foreground/10 flex flex-col gap-4 rounded-[20px] p-6 ring-1"
+            >
+              <feature.icon className="text-signal size-5" strokeWidth={1.5} />
+              <div className="min-h-6">{feature.visual}</div>
+              <h3 className="type-title-md">{feature.title}</h3>
+              <p className="type-body-md text-muted-foreground">{feature.body}</p>
+            </li>
+          ))}
+        </ul>
+      </BlurFade>
     </section>
   );
 }

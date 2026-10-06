@@ -9,3 +9,6 @@ public/models/optimized
 
 # Reference mockups supplied by the human: read-only, never reformat or ship.
 docs/ui-reference
+
+# Kilo Code agent worktrees: separate checkouts, not this repo's source (see D-028).
+.kilo
