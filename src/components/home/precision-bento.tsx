@@ -2,10 +2,10 @@
 
 import { useRef } from "react";
 import { motion, useMotionValue, useReducedMotion, useSpring, useTransform } from "framer-motion";
-import { Crop, PenLine, SlidersHorizontal, Sun } from "lucide-react";
+import { Crop, PenLine, Sun } from "lucide-react";
 import { Section } from "@/components/home/section";
 import { EASE, viewportOnce, useIsTouch } from "@/components/home/motion";
-import { ColorDemo, DecalsDemo, LaserDemo, MaterialDemo } from "@/components/home/precision-demos";
+import { ColorDemo, DecalsDemo, MaterialDemo } from "@/components/home/precision-demos";
 
 const headingWords = ["Built", "for", "tactile", "perfection."];
 
@@ -15,10 +15,12 @@ type BentoCardProps = {
   body: string;
   demo: React.ReactNode;
   className?: string;
+  /** Cursor-following spotlight border. Only the SVG-upload card enables it. */
+  glow?: boolean;
 };
 
-/** Card with a cursor-following spotlight border and a 4px hover lift. */
-function BentoCard({ icon: Icon, title, body, demo, className }: BentoCardProps) {
+/** Card with a 4px hover lift; spotlight border is opt-in via `glow`. */
+function BentoCard({ icon: Icon, title, body, demo, className, glow = false }: BentoCardProps) {
   const ref = useRef<HTMLDivElement>(null);
   const isTouch = useIsTouch();
   const reduced = useReducedMotion();
@@ -41,18 +43,20 @@ function BentoCard({ icon: Icon, title, body, demo, className }: BentoCardProps)
       transition={{ duration: 0.8, ease: EASE }}
       whileHover={reduced ? undefined : { y: -4 }}
       onPointerMove={(e) => {
-        if (isTouch || reduced) return;
+        if (isTouch || reduced || !glow) return;
         const rect = e.currentTarget.getBoundingClientRect();
         x.set(((e.clientX - rect.left) / rect.width) * 100);
         y.set(((e.clientY - rect.top) / rect.height) * 100);
       }}
       className={`group relative overflow-hidden rounded-[var(--card-radius)] border border-[var(--hairline)] bg-[var(--surface-1)] p-6 [box-shadow:var(--inner-highlight)] transition-colors duration-500 hover:border-[var(--hairline-strong)] ${className ?? ""}`}
     >
-      <motion.div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-100"
-        style={{ background: spotlight }}
-      />
+      {glow && (
+        <motion.div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-100"
+          style={{ background: spotlight }}
+        />
+      )}
       <div className="relative flex h-full flex-col gap-4">
         <div className="flex items-center gap-3">
           <Icon className="size-5 text-[var(--lime)]" strokeWidth={1.5} aria-hidden />
@@ -69,7 +73,7 @@ function BentoCard({ icon: Icon, title, body, demo, className }: BentoCardProps)
 export function PrecisionBento() {
   return (
     <Section band>
-      <header className="mx-auto flex max-w-2xl flex-col items-center gap-5 text-center">
+      <header className="mx-auto flex max-w-2xl flex-col items-center gap-3 text-center">
         <motion.span
           className="lux-eyebrow text-[var(--lime)]"
           initial={{ opacity: 0 }}
@@ -103,7 +107,7 @@ export function PrecisionBento() {
         </motion.p>
       </header>
 
-      <div className="mt-14 grid grid-cols-1 gap-4 md:grid-cols-12">
+      <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-12">
         <BentoCard
           icon={Sun}
           title="Material physics"
@@ -124,13 +128,7 @@ export function PrecisionBento() {
           body="Zero-loss vector upload with automatic seam avoidance."
           demo={<DecalsDemo />}
           className="md:col-span-5"
-        />
-        <BentoCard
-          icon={SlidersHorizontal}
-          title="Laser engraving"
-          body="Micron-level fiber laser etching on brushed and powder-coated steel."
-          demo={<LaserDemo />}
-          className="md:col-span-7"
+          glow
         />
       </div>
     </Section>

@@ -319,7 +319,7 @@
   letter-spacing: -0.03em;
 }
 .home-lux .lux-h1 {
-  font-size: clamp(3.5rem, 9vw, 9rem);
+  font-size: clamp(2.75rem, 6vw, 5.5rem);
   line-height: 0.95;
 }
 /* Hero headline is more compact than the global H1 so the fold stays
@@ -450,5 +450,17 @@
     animation: none;
     opacity: 1;
   }
+}
+
+
+/*
+ * Home page only: tighten the gap between the Testimonials (reviews) section and
+ * the Footer. Scoped with `:has()` so it affects ONLY the home page's footer
+ * (the one that follows a <main> containing `.home-lux`); every other route and
+ * the footer component itself stay untouched. Kept close to the footer's native
+ * `mt-24` so its original style is preserved — just a modest reduction.
+ */
+main:has(.home-lux) + footer {
+  margin-top: 4rem;
 }
 

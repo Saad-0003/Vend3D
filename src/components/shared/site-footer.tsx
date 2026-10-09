@@ -32,8 +32,8 @@ const socials = [
 
 export function SiteFooter() {
   return (
-    <footer className="mt-24 w-full px-4 pb-10 sm:px-6">
-      <div className="ring-foreground/10 mx-auto grid w-full max-w-[1400px] grid-cols-1 gap-12 rounded-[28px] px-6 py-14 ring-1 md:px-10 lg:grid-cols-12">
+    <footer className="mt-24 w-full rounded-t-[28px] border-t border-foreground/10 bg-card/40">
+      <div className="mx-auto grid w-full max-w-[1400px] grid-cols-1 gap-12 px-6 py-14 md:px-10 lg:grid-cols-12">
         <div className="flex flex-col gap-5 lg:col-span-5">
           <Logo markClassName="h-6" />
           <p className="type-headline-sm tracking-headline font-medium">
