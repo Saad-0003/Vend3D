@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -24,7 +25,18 @@ export type ProductCardProduct = {
   image: string;
   rating: number;
   colorways: { name: string; hex: string }[];
+  /**
+   * Optional per-colourway image overrides, keyed by the lowercased colourway
+   * name. Absent (or a missing key) falls back to `image` — every card in the
+   * Phase 1 catalog has none yet, so hovering a swatch only re-tints the card.
+   */
+  variants?: Record<string, string>;
 };
+
+/** `?color=` value for a colourway: lowercased, hyphenated. */
+function colorSlug(name: string) {
+  return name.toLowerCase().replace(/\s+/g, "-");
+}
 
 /**
  * The landing page's product card, lifted verbatim out of
@@ -44,6 +56,14 @@ export function ProductCard({
   href?: string;
   className?: string;
 }) {
+  // Hovering a swatch re-tints the card wash and swaps the media when the
+  // catalog ships a per-colourway variant. Pointer-out falls back to the first
+  // (default) colourway, matching the landing page's original behaviour.
+  const [active, setActive] = useState(0);
+  const base = href ?? `/products/${product.id}`;
+  const swatch = product.colorways[active];
+  const media = (swatch && product.variants?.[colorSlug(swatch.name)]) ?? product.image;
+
   return (
     <motion.li
       layout
@@ -53,7 +73,10 @@ export function ProductCard({
       transition={{ duration: 0.7, ease: EASE, delay: index * 0.08 }}
       exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.25 } }}
       className={cn(
-        "group/card relative overflow-hidden rounded-[var(--card-radius)] border border-[var(--hairline)] bg-[var(--surface-1)] [box-shadow:var(--inner-highlight)] transition-colors duration-500 hover:border-[var(--hairline-strong)]",
+        // `flex flex-col` + `flex-1` on the meta block keeps every card the same
+        // height regardless of how far the product name wraps, so no card can
+        // sit higher than its row neighbours on hover.
+        "group/card relative flex flex-col overflow-hidden rounded-[var(--card-radius)] border border-[var(--hairline)] bg-[var(--surface-1)] [box-shadow:var(--inner-highlight)] transition-colors duration-500 hover:border-[var(--hairline-strong)]",
         className,
       )}
     >
@@ -63,12 +86,12 @@ export function ProductCard({
             aria-hidden
             className="absolute inset-0 opacity-0 transition-opacity duration-500 group-hover/card:opacity-100"
             style={{
-              background: `radial-gradient(120% 80% at 50% 120%, ${product.colorways[0]?.hex ?? "#c6f135"}33, transparent 70%)`,
+              background: `radial-gradient(120% 80% at 50% 120%, ${swatch?.hex ?? "#c6f135"}33, transparent 70%)`,
             }}
           />
           <Image
-            src={product.image}
-            alt={product.name}
+            src={media}
+            alt={`${product.name} — ${swatch?.name ?? "default colorway"}`}
             fill
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
             className="object-cover transition-transform duration-700 ease-out group-hover/card:scale-[1.04]"
@@ -87,7 +110,7 @@ export function ProductCard({
         </div>
       </Link>
 
-      <div className="flex flex-col gap-3 p-5">
+      <div className="flex flex-1 flex-col gap-3 p-5">
         <div className="flex items-baseline justify-between gap-3">
           <span className="lux-display text-[18px] text-[var(--ivory)]">{product.name}</span>
           <span className="lux-mono lux-tabular text-[14px] text-[var(--muted)]">
@@ -95,16 +118,23 @@ export function ProductCard({
           </span>
         </div>
         <TooltipProvider delayDuration={120}>
-          <ul aria-label={`${product.name} colorways`} className="flex items-center gap-2">
+          <ul
+            aria-label={`${product.name} colorways`}
+            className="mt-auto flex items-center gap-2"
+          >
             {product.colorways.map((c, i) => (
               <li key={c.name}>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <button
-                      type="button"
+                    <Link
+                      // Clicking a swatch opens Studio with the colour pre-applied,
+                      // so it navigates rather than toggling local state.
+                      href={`${base}?color=${colorSlug(c.name)}`}
                       aria-label={`${product.name} — ${c.name}`}
-                      className={`size-4 cursor-pointer rounded-full ring-1 transition-shadow ${
-                        i === 0
+                      onPointerEnter={() => setActive(i)}
+                      onFocus={() => setActive(i)}
+                      className={`block size-4 rounded-full ring-1 transition-shadow ${
+                        active === i
                           ? "ring-2 ring-[var(--lime)] ring-offset-2 ring-offset-[var(--surface-1)]"
                           : "ring-[var(--hairline-strong)]"
                       }`}

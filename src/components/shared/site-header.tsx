@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { User } from "lucide-react";
 
 const links = [
-  { href: "/products", label: "Shop" },
-  { href: "/customize/demo", label: "Studio" },
+  { href: "/shop", label: "Shop" },
+  { href: "/studio", label: "Studio" },
   { href: "/designs", label: "Designs" },
 ];
 

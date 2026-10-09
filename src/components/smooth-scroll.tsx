@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import Lenis from "lenis";
 import "lenis/dist/lenis.css";
+import { setLenisInstance } from "@/lib/lenis";
 
 /**
  * Inertial page scrolling via lenis, mounted once in the root layout. Skipped
@@ -14,7 +15,11 @@ export function SmoothScroll({ children }: { children: React.ReactNode }) {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
     const lenis = new Lenis({ autoRaf: true });
-    return () => lenis.destroy();
+    setLenisInstance(lenis);
+    return () => {
+      setLenisInstance(null);
+      lenis.destroy();
+    };
   }, []);
 
   return <>{children}</>;

@@ -7,7 +7,9 @@ import { motion, useReducedMotion } from "framer-motion";
 import { ArrowRight, Star } from "lucide-react";
 import { ShimmerButton } from "@/components/ui/shimmer-button";
 import { NumberTicker } from "@/components/ui/number-ticker";
+import { CategoryStrip } from "@/components/home/category-strip";
 import { EASE } from "@/components/home/motion";
+import { scrollToSection } from "@/lib/lenis";
 
 const headlineLines = ["See it. Shape it.", "Own it."];
 
@@ -33,8 +35,11 @@ export function Hero() {
   const [active, setActive] = useState(0);
 
   return (
-    <section className="px-4 pt-6 sm:px-6 lg:pt-8">
-      <div className="mx-auto grid w-full max-w-[1280px] items-center gap-12 lg:grid-cols-2 lg:gap-16">
+    // Height is tuned so the first row of products peeks above the fold at
+    // 1440×900: viewport − sticky navbar (56px) − 120px of breathing room.
+    // The category marquee is the hero's bottom edge (no gap, no padding).
+    <section className="relative flex min-h-[calc(100svh-56px-120px)] flex-col justify-center pt-6 sm:pt-8">
+      <div className="mx-auto grid w-full max-w-[1280px] items-center gap-12 px-4 pb-12 sm:px-6 lg:grid-cols-2 lg:gap-16 lg:pb-16">
         {/* Text column — kept close to the visual so there's no dead middle gap.
             Left padding keeps the block off the page edge for a balanced feel. */}
         <div className="flex flex-col items-start gap-6 pl-4 sm:pl-8 lg:gap-7 lg:pl-14">
@@ -86,7 +91,7 @@ export function Hero() {
               borderRadius="999px"
               className="h-12 px-7 text-[15px] font-medium text-[var(--ink)]"
             >
-              <Link href="/products" className="inline-flex items-center gap-2">
+              <Link href="/studio" className="inline-flex items-center gap-2">
                 Start designing
                 <motion.span whileHover={{ x: 4 }} transition={{ duration: 0.25 }}>
                   <ArrowRight className="size-4" strokeWidth={1.5} />
@@ -94,12 +99,13 @@ export function Hero() {
               </Link>
             </ShimmerButton>
 
-            <Link
-              href="/products"
-              className="inline-flex h-12 items-center rounded-full px-7 text-[15px] font-medium text-[var(--ivory)] ring-1 ring-[var(--hairline-strong)] transition-colors duration-300 hover:bg-[var(--surface-2)]"
+            <button
+              type="button"
+              onClick={() => scrollToSection("shop")}
+              className="inline-flex h-12 cursor-pointer items-center rounded-full px-7 text-[15px] font-medium text-[var(--ivory)] ring-1 ring-[var(--hairline-strong)] transition-colors duration-300 hover:bg-[var(--surface-2)]"
             >
               Shop
-            </Link>
+            </button>
           </motion.div>
 
           {/* Trust row. */}
@@ -194,6 +200,10 @@ export function Hero() {
           </ul>
         </motion.div>
       </div>
+
+      {/* Category marquee closes the hero — its bottom hairline is the seam
+          between the hero and the shop grid directly below it. */}
+      <CategoryStrip />
     </section>
   );
 }

@@ -1,66 +1,79 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Clock, Globe, Infinity as InfinityIcon, Truck } from "lucide-react";
 import { NumberTicker } from "@/components/ui/number-ticker";
 import { Section } from "@/components/home/section";
 import { EASE } from "@/components/home/motion";
 
 type Column = {
-  icon: typeof Clock;
-  figure: React.ReactNode;
+  value: React.ReactNode;
   label: string;
   body: string;
 };
 
 const columns: Column[] = [
   {
-    icon: InfinityIcon,
-    figure: <span className="lux-display">1</span>,
-    label: "unit",
+    value: <span>1</span>,
+    label: "Zero minimums",
     body: "True DTC single-piece drops with the per-unit economics of high-volume runs.",
   },
   {
-    icon: Clock,
-    figure: (
-      <span className="flex items-baseline gap-2">
+    value: (
+      <span className="inline-flex items-baseline gap-1.5">
         <NumberTicker value={4000} className="!text-inherit" />
-        <span className="lux-mono text-[0.3em] tracking-[0.2em] text-[var(--muted)]">DPI</span>
+        <span className="text-[0.45em] font-medium tracking-wider text-[var(--muted)]">DPI</span>
       </span>
     ),
-    label: "sub-millimeter print",
+    label: "Sub-millimeter print",
     body: "Precision industrial dye-sub and vector UV printing calibrated up to 4000 DPI.",
   },
   {
-    icon: Globe,
-    figure: (
-      <span className="flex items-baseline gap-2">
-        <span className="lux-display">Real-time</span>
-        <span className="lux-pulse-dot bg-[var(--lime)] mb-[0.5em] size-[0.14em] rounded-full" />
+    value: (
+      <span className="inline-flex items-baseline gap-2">
+        Real-time
+        <span className="lux-pulse-dot bg-[var(--lime)] mb-[0.45em] size-[0.14em] rounded-full" />
       </span>
     ),
-    label: "proofing",
+    label: "Real-time proofing",
     body: "Photorealistic physics based rendering ensures the physical blank matches the viewport.",
   },
   {
-    icon: Truck,
-    figure: (
-      <span className="flex items-baseline gap-1">
+    value: (
+      <span className="inline-flex items-baseline">
         <NumberTicker value={100} className="!text-inherit" />
-        <span className="lux-display">%</span>
+        %
       </span>
     ),
-    label: "carbon neutral dispatch",
+    label: "Carbon neutral dispatch",
     body: "Eco-certified automated fulfillment centers powered 100% by renewable energy.",
   },
 ];
 
-/** Benefits "spec strip" — one wide band split by vertical hairlines + grain. */
+/** Metrics band — rounded dark panel, dot-matrix backdrop, centered header. */
 export function Benefits() {
   return (
-    <Section band className="!py-0">
-      <div className="lux-grain border-y border-[var(--hairline)]">
-        <div className="grid grid-cols-1 divide-y divide-[var(--hairline)] sm:grid-cols-2 sm:divide-y-0 lg:grid-cols-4">
+    <Section>
+      <div
+        className="relative overflow-hidden rounded-2xl border border-[var(--hairline)] bg-[var(--surface-1)] px-6 py-14 sm:px-10 md:px-14"
+        style={{
+          // Ultra-low-opacity dot matrix (dark theme preserved).
+          backgroundImage: "radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px)",
+          backgroundSize: "20px 20px",
+        }}
+      >
+        {/* Centered header. */}
+        <div className="mx-auto mb-12 flex max-w-2xl flex-col items-center gap-3 text-center">
+          <h2 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+            Production-grade, from a single unit.
+          </h2>
+          <p className="text-sm text-[var(--muted)] sm:text-base">
+            Precision printing, real-time proofing, and carbon-neutral dispatch — with no minimum
+            order.
+          </p>
+        </div>
+
+        {/* Metrics row: 1 col (horizontal dividers) → 4 cols (vertical dividers). */}
+        <div className="grid grid-cols-1 md:grid-cols-4">
           {columns.map((col, i) => (
             <motion.div
               key={col.label}
@@ -68,23 +81,25 @@ export function Benefits() {
               whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
               viewport={{ once: true, margin: "-15% 0px" }}
               transition={{ duration: 0.7, ease: EASE, delay: i * 0.08 }}
-              className={`group relative flex flex-col items-start gap-4 px-8 py-14 transition-colors duration-500 hover:bg-[var(--surface-2)] ${
-                i > 0 ? "sm:border-l sm:border-[var(--hairline)]" : ""
-              }`}
+              className={`flex flex-col items-center gap-2 px-4 text-center ${
+                i < columns.length - 1
+                  ? "border-b border-[var(--hairline)] pb-8 md:border-r md:border-b-0 md:pb-0"
+                  : ""
+              } ${i < columns.length - 1 ? "md:pr-8" : ""}`}
             >
-              <col.icon className="size-5 text-[var(--lime)]" strokeWidth={1.5} aria-hidden />
-
-              <div className="flex flex-col gap-1">
-                <div className="text-[var(--ivory)] text-[clamp(2.5rem,3.5vw,3.75rem)] leading-none">
-                  {col.figure}
-                </div>
-                <span className="lux-eyebrow text-[var(--brass)]">{col.label}</span>
+              {/* Large metric value — modern sans, white. */}
+              <div className="text-3xl leading-none font-bold text-white sm:text-4xl">
+                {col.value}
               </div>
 
-              <p className="max-w-xs text-[15px] leading-[1.6] text-[var(--muted)]">{col.body}</p>
+              {/* Mono uppercase label. */}
+              <span className="mt-2 font-mono text-xs tracking-wider text-[var(--faint)] uppercase">
+                {col.label}
+              </span>
 
-              {/* Lime underline draws left→right on hover. */}
-              <span className="absolute bottom-0 left-0 h-0.5 w-0 bg-[var(--lime)] transition-all duration-500 ease-out group-hover:w-full" />
+              <p className="mt-1 max-w-[15rem] text-sm leading-relaxed text-[var(--muted)]">
+                {col.body}
+              </p>
             </motion.div>
           ))}
         </div>
@@ -92,4 +107,5 @@ export function Benefits() {
     </Section>
   );
 }
+
 

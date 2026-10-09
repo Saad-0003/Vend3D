@@ -168,16 +168,24 @@ export function Process() {
               transition={{ duration: 0.7, ease: EASE, delay: i * 0.08 }}
               className="group relative flex flex-col gap-5 rounded-[var(--card-radius)] border border-[var(--hairline)] bg-[var(--surface-1)] p-7 [box-shadow:var(--inner-highlight)] transition-colors duration-500 hover:border-[var(--lime)]/40"
             >
-              <div className="flex items-start justify-between">
-                <span className="flex size-11 items-center justify-center rounded-[var(--inner-radius)] bg-[var(--surface-3)] text-[var(--lime)] ring-1 ring-[var(--hairline)] transition-shadow duration-500 group-hover:shadow-[0_0_20px_var(--lime-glow)]">
+              <div className="flex items-start justify-between gap-3">
+                <span className="flex size-11 shrink-0 items-center justify-center rounded-[var(--inner-radius)] bg-[var(--surface-3)] text-[var(--lime)] ring-1 ring-[var(--hairline)] transition-shadow duration-500 group-hover:shadow-[0_0_20px_var(--lime-glow)]">
                   <step.icon className="size-5" strokeWidth={1.5} aria-hidden />
                 </span>
-                <span className="lux-eyebrow lux-tabular text-[var(--faint)]">{step.number}</span>
+                {/* Small mono numeral, tucked top-right where it can never collide
+                    with the title or body copy below it. */}
+                <span className="lux-mono lux-tabular shrink-0 text-[10px] tracking-[0.18em] text-[var(--faint)]">
+                  {step.number}
+                </span>
               </div>
 
-              {illustrations[i]}
+              {/* Fixed-height illustration well: identical in all three cards, so
+                  the copy block below starts on the same baseline. */}
+              <span className="flex h-10 items-center" aria-hidden>
+                {illustrations[i]}
+              </span>
 
-              <div>
+              <div className="mt-auto">
                 <h3 className="lux-display text-[22px] text-[var(--ivory)]">{step.title}</h3>
                 <p className="mt-2 text-[15px] leading-[1.6] text-[var(--muted)]">{step.body}</p>
               </div>

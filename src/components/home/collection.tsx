@@ -95,14 +95,16 @@ export function CollectionGrid() {
   const filtered = tab === "All" ? products : products.filter((p) => p.category === tab);
 
   return (
-    <Section>
+    // `scroll-mt` clears the sticky navbar (h-14) + 24px so an in-page jump to
+    // #shop never hides the section header behind it.
+    <Section id="shop" className="scroll-mt-[80px]">
       <header className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
         <div className="flex flex-col gap-3">
           <span className="lux-eyebrow text-[var(--lime)]">Hardware collection</span>
           <h2 className="lux-h2 lux-display text-[var(--ivory)]">Blanks engineered to endure.</h2>
         </div>
         <Link
-          href="/products"
+          href="/shop"
           className="group inline-flex items-center gap-1.5 self-start text-[15px] font-medium text-[var(--lime)] md:self-auto"
         >
           <span className="relative">
@@ -137,7 +139,10 @@ export function CollectionGrid() {
         </TabsList>
       </Tabs>
 
-      <motion.ul layout className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      <motion.ul
+        layout
+        className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-3 md:gap-5 lg:grid-cols-4"
+      >
         <AnimatePresence mode="popLayout">
           {filtered.map((product, i) => (
             <ProductCard key={product.id} product={product} index={i} />

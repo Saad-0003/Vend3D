@@ -11,7 +11,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const links = [
-  { href: "/products", label: "Shop" },
+  { href: "/shop", label: "Shop" },
+  { href: "/studio", label: "Studio" },
   { href: "/designs", label: "Designs" },
   { href: "/orders", label: "Orders" },
 ];

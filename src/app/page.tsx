@@ -1,6 +1,4 @@
 import { Hero } from "@/components/home/hero";
-import { CategoryStrip } from "@/components/home/category-strip";
-import { PrecisionBento } from "@/components/home/precision-bento";
 import { CollectionGrid } from "@/components/home/collection";
 import { Process } from "@/components/home/process";
 import { Benefits } from "@/components/home/benefits";
@@ -12,9 +10,8 @@ export default function HomePage() {
   return (
     <div className="home-lux">
       <ScrollProgress />
+      {/* The hero carries the category marquee as its bottom edge. */}
       <Hero />
-      <CategoryStrip />
-      <PrecisionBento />
       <CollectionGrid />
       <Process />
       <Benefits />
