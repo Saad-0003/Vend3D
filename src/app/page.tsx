@@ -1,19 +1,27 @@
-import { Hero } from "@/components/landing/hero";
-import { PrecisionGrid } from "@/components/landing/precision-grid";
-import { CollectionGrid } from "@/components/landing/collection-grid";
-import { Steps } from "@/components/landing/steps";
-import { Stats } from "@/components/landing/stats";
+import { Hero } from "@/components/home/hero";
+import { CategoryStrip } from "@/components/home/category-strip";
+import { PrecisionBento } from "@/components/home/precision-bento";
+import { CollectionGrid } from "@/components/home/collection";
+import { Process } from "@/components/home/process";
+import { Benefits } from "@/components/home/benefits";
 import { LaunchBanner } from "@/components/landing/launch-banner";
+import { ScrollProgress } from "@/components/home/scroll-progress";
+import { ToTestimonialsFade } from "@/components/home/section-fade";
 
 export default function HomePage() {
   return (
-    <>
+    <div className="home-lux">
+      <ScrollProgress />
       <Hero />
-      <PrecisionGrid />
+      <CategoryStrip />
+      <PrecisionBento />
       <CollectionGrid />
-      <Steps />
-      <Stats />
+      <Process />
+      <Benefits />
+      {/* Soft ink fade so the long page transitions cleanly into Testimonials. */}
+      <ToTestimonialsFade />
       <LaunchBanner />
-    </>
+    </div>
   );
 }
+

@@ -365,3 +365,60 @@ stale worktree, failing on source this repo does not own.
 **Alternatives rejected:** deleting the worktree (it belongs to the human's other agent session);
 fixing its formatting (overwritten, and not this repo's source); hard-coded pathspecs in the npm
 script (fragile — `.prettierignore` is the tool's own mechanism).
+
+---
+
+## Home page "Midnight atelier" refactor (visual redesign)
+
+### D-029 · `--lime` reuses the shipped brand lime `#c6f135`, not the brief's `#C8F23D`
+
+**What:** the redesigned home page's `--lime` token is `#c6f135` (the existing `--signal`), sampled
+from the current hero/testimonial accents.
+**Why:** the task explicitly allows this ("match the existing brand lime exactly… use that value if
+it differs"). Using one lime keeps the redesigned sections harmonious with the untouched Navbar,
+Testimonials and Footer, which already render `#c6f135`.
+**Alternatives rejected:** the literal `#C8F23D` from the brief (creates two near-identical limes on
+one page); recolouring the untouched shared sections to match `#C8F23D` (violates the hard scope rule).
+
+### D-030 · Scoped tokens live in `globals.css` under a `.home-lux` class, not a `@theme` block
+
+**What:** the "Midnight atelier" tokens/utility classes are defined inside `.home-lux { … }` in
+`src/app/globals.css`; sections consume them via `bg-[var(--surface-1)]` etc.
+**Why:** a global Tailwind `@theme` remap would rebind shared colour tokens (`--background`,
+`--foreground`) and change how the Navbar / Testimonials / Footer render — forbidden by the hard
+scope rules. Scoping to `.home-lux` (wrapped once around the page composition) guarantees zero
+leakage. Tailwind v4 inlines `@import`ed local CSS poorly, so the tokens were inlined into
+`globals.css` rather than kept in a separate imported file.
+**Alternatives rejected:** a separate `home-lux.css` imported via `@import` (Tailwind v4/PostCSS
+"Missing opening {" parse failure); a global `@theme` block (repaints protected sections).
+
+### D-031 · Display serif loaded as `Instrument_Serif` via `next/font`, exposed only as `--font-instrument`
+
+**What:** `layout.tsx` adds `Instrument_Serif` with `variable: "--font-instrument"`; `.home-lux`
+display rules reference it. Headings previously rendered in Geist Sans because `--font-heading`
+mapped to it — no serif was ever loading.
+**Why:** the brief calls for an editorial serif that stays harmonious with the untouched sections.
+Adding a font *variable* is additive and does not touch Navbar/Footer/Testimonials, which keep Geist.
+**Alternatives rejected:** remapping the global `--font-heading` to the serif (would change shared
+component headings); Fraunces (Instrument Serif is the brief's first choice and loads fine).
+
+### D-032 · Old landing section files deleted once fully replaced
+
+**What:** `components/landing/{hero,precision-grid,collection-grid,steps,stats}.tsx` were removed;
+replaced by `components/home/*`. `launch-banner.tsx` (Testimonials) is untouched.
+**Why:** the redesign replaces those sections 1:1; leaving dead components would be unused code. The
+only importer was `app/page.tsx`, which now points at `components/home/*`.
+**Alternatives rejected:** keeping the old files "just in case" (dead code, violates the
+"delete only the old section markup you are replacing" instruction's intent); editing them in place
+(mixes old and new styling).
+
+### D-033 · `ResizeObserver` stub added to `tests/setup.ts`
+
+**What:** the test setup now polyfills `ResizeObserver` alongside the existing `IntersectionObserver`
+and `matchMedia` stubs.
+**Why:** the redesigned home renders shadcn `Slider` (bento micro-demos) and `Tabs` (collection
+filter), whose Radix primitives (`@radix-ui/react-use-size`) require `ResizeObserver`, absent in
+jsdom. Without the stub the landing-page suite throws `ResizeObserver is not defined`.
+**Alternatives rejected:** mocking per-test (repetitive, the whole suite shares the page render);
+downgrading the components (loses required interactivity).
+

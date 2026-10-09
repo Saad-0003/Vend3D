@@ -22,10 +22,16 @@ describe("landing page", () => {
   it("renders every landing section", () => {
     render(<HomePage />);
 
-    expect(screen.getByText("Built for tactile perfection.")).toBeInTheDocument();
+    // The precision heading is split word-by-word for a blur reveal, so the
+    // words are separate text nodes; assert each is present rather than one
+    // contiguous string.
+    for (const word of ["Built", "for", "tactile", "perfection."]) {
+      expect(screen.getByText(word, { exact: true })).toBeInTheDocument();
+    }
     expect(screen.getByText("Blanks engineered to endure.")).toBeInTheDocument();
     expect(screen.getByText("From 3D viewport to your studio.")).toBeInTheDocument();
-    expect(screen.getByText("Carbon neutral dispatch")).toBeInTheDocument();
+    // Benefits labels are lowercased in the DOM (uppercased via CSS).
+    expect(screen.getByText("carbon neutral dispatch")).toBeInTheDocument();
     expect(screen.getByText("Creators launch drops without waiting.")).toBeInTheDocument();
   });
 

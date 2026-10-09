@@ -35,3 +35,16 @@ if (typeof globalThis.matchMedia === "undefined") {
     dispatchEvent: () => false,
   })) as unknown as typeof window.matchMedia;
 }
+
+/**
+ * jsdom also lacks ResizeObserver, required by the shadcn Slider/Tabs Radix
+ * primitives (@radix-ui/react-use-size) rendered on the redesigned home page.
+ */
+if (typeof globalThis.ResizeObserver === "undefined") {
+  globalThis.ResizeObserver = class ResizeObserverStub {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  } as unknown as typeof ResizeObserver;
+}
+
