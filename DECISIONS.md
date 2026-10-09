@@ -422,3 +422,49 @@ jsdom. Without the stub the landing-page suite throws `ResizeObserver is not def
 **Alternatives rejected:** mocking per-test (repetitive, the whole suite shares the page render);
 downgrading the components (loses required interactivity).
 
+
+### D-034 · `docs/DESIGN.md` is the extracted system; the UI reference is demoted to history
+
+**What:** added `docs/DESIGN.md` at the repo root, recording the tokens/type/shape/motion
+actually shipped by the landing page (two token layers, Instrument Serif + Geist + Geist Mono,
+`--card-radius: 28px`, `EASE [0.22,1,0.36,1]`, `framer-motion` 14 + `lenis` 1.3) plus the 13
+binding global rules. `docs/ui-reference/DESIGN.md` and `DESIGN_STUDIO.md` stay as supplied
+reference material but are explicitly **not** the contract.
+**Why:** the mockups describe a Material-3 system (Space Grotesk, `#0e0e0e` canvas, `16px`
+input radius, `#c8c6c2` surface tint) that no code implements. Reading them as the contract
+produces screens that clash with the shipping Navbar/Footer. The root `DESIGN.md` also resolves
+one factual conflict with the brief: the largest card radius in the code is `28px`
+(`--card-radius`), with `36px` reserved for the 3D stage — there is no 40px radius anywhere.
+**Alternatives rejected:** rewriting `docs/ui-reference/DESIGN.md` in place (it is human-supplied
+reference and must never be reformatted per `AGENTS.md`); inventing a third token set for the
+new screens (the storefront `:root` tokens already cover them).
+
+### D-035 · Landing bento controls **moved** (not copied) to `components/studio/controls/`
+
+**What:** `ColorDemo`, `MaterialDemo` and `DecalsDemo` in `src/components/home/precision-demos.tsx`
+were moved to `HueColorControl`, `FinishControl` and `DecalDropzone` under
+`src/components/studio/controls/`; `precision-demos.tsx` now just renders them. `EngraveControl`
+(the `DEPTH: 0.12mm FIBER` chip from `docs/ui-reference/HOMEPAGE.md`) is new.
+**Why:** rule 3 forbids a second slider/dropzone style, and the bento section is deleted in
+prompt 01 — leaving the markup inside `home/` would have meant copying it into the studio. The
+controls keep the landing behaviour by default (`decorative` hover-only, resets to brand lime on
+pointer leave) and add an `interactive` mode (pointer drag, arrow keys, `role="slider"`,
+`aria-valuetext`, `aria-live`) for real use. `DecalDropzone` additionally became functional:
+PNG/JPG/SVG, ≤2 MB, validated client-side with the actionable message from `AGENTS.md` §8.
+**Alternatives rejected:** copying the markup (two sources of truth, guaranteed drift);
+rewriting the landing page to import from a new location without moving (leaves dead files
+behind); replacing the bespoke hue/gloss bars with the shadcn `Slider` (different visual
+language than the shipped bento demos).
+
+### D-036 · Product card extracted to `components/ui/product-card.tsx` and re-exported on the landing page
+
+**What:** the collection card moved to `src/components/ui/product-card.tsx` with a small additive
+API (`href`, `className`, `index`); `home/collection.tsx` imports it unchanged.
+**Why:** every later screen (`/products`, `/designs`, `/cart`, `/admin`) needs the identical card.
+One behaviour change was made deliberately: the hover colour wash now reads `colorways[0]` instead
+of a rotating `activeSw` index that only ever advanced on hover — visually identical at rest, but
+deterministic and reusable outside the collection's own state.
+**Alternatives rejected:** a `card` slot prop threaded through the collection component (still one
+component doing two jobs); a wrapper that recomputed the classes (duplicate styling).
+
+

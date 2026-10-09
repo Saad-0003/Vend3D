@@ -1,19 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, Star } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { ProductCard as SharedProductCard } from "@/components/ui/product-card";
 import { Section } from "@/components/home/section";
-import { EASE, viewportOnce } from "@/components/home/motion";
 
 type Product = {
   id: string;
@@ -89,85 +82,12 @@ const products: Product[] = [
 const tabs = ["All", "Apparel", "Drinkware", "Headwear"] as const;
 type Tab = (typeof tabs)[number];
 
-function ProductCard({ product, index }: { product: Product; index: number }) {
-  const [activeSw, setActiveSw] = useState(0);
-
-  return (
-    <motion.li
-      layout
-      initial={{ opacity: 0, y: 18, filter: "blur(8px)" }}
-      whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-      viewport={viewportOnce}
-      transition={{ duration: 0.7, ease: EASE, delay: index * 0.08 }}
-      exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.25 } }}
-      className="group/card relative overflow-hidden rounded-[var(--card-radius)] border border-[var(--hairline)] bg-[var(--surface-1)] [box-shadow:var(--inner-highlight)] transition-colors duration-500 hover:border-[var(--hairline-strong)]"
-    >
-      <Link href={`/products/${product.id}`} className="block" aria-label={product.name}>
-        <div className="relative aspect-[4/5] w-full overflow-hidden bg-[var(--surface-2)]">
-          <div
-            aria-hidden
-            className="absolute inset-0 opacity-0 transition-opacity duration-500 group-hover/card:opacity-100"
-            style={{
-              background: `radial-gradient(120% 80% at 50% 120%, ${(product.colorways[activeSw]?.hex ?? "#c6f135")}33, transparent 70%)`,
-            }}
-          />
-          <Image
-            src={product.image}
-            alt={product.name}
-            fill
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-            className="object-cover transition-transform duration-700 ease-out group-hover/card:scale-[1.04]"
-          />
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover/card:opacity-100"
-          />
-          <span className="absolute top-3 right-3 inline-flex items-center gap-1 rounded-full bg-black/55 px-2.5 py-1 text-[11px] font-medium text-white/90 backdrop-blur">
-            <Star className="size-3 fill-current text-[var(--lime)]" strokeWidth={0} aria-hidden />
-            <span className="lux-tabular">{product.rating.toFixed(1)}</span>
-          </span>
-          <div className="absolute inset-x-0 bottom-0 translate-y-full bg-[var(--ink)]/80 py-3 text-center text-[13px] font-medium text-[var(--ivory)] backdrop-blur transition-transform duration-500 ease-out group-hover/card:translate-y-0">
-            Customize
-          </div>
-        </div>
-      </Link>
-
-      <div className="flex flex-col gap-3 p-5">
-        <div className="flex items-baseline justify-between gap-3">
-          <span className="lux-display text-[18px] text-[var(--ivory)]">{product.name}</span>
-          <span className="lux-mono lux-tabular text-[14px] text-[var(--muted)]">
-            {product.price}
-          </span>
-        </div>
-        <TooltipProvider delayDuration={120}>
-          <ul aria-label={`${product.name} colorways`} className="flex items-center gap-2">
-            {product.colorways.map((c, i) => (
-              <li key={c.name}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      aria-label={`${product.name} — ${c.name}`}
-                      onClick={() => setActiveSw(i)}
-                      className={`size-4 cursor-pointer rounded-full ring-1 transition-shadow ${
-                        i === activeSw
-                          ? "ring-2 ring-[var(--lime)] ring-offset-2 ring-offset-[var(--surface-1)]"
-                          : "ring-[var(--hairline-strong)]"
-                      }`}
-                      style={{ backgroundColor: c.hex }}
-                    />
-                  </TooltipTrigger>
-                  <TooltipContent>{c.name}</TooltipContent>
-                </Tooltip>
-              </li>
-            ))}
-          </ul>
-        </TooltipProvider>
-      </div>
-    </motion.li>
-  );
-}
-
+/**
+ * The landing card IS the shared components/ui/product-card.tsx — aliased here
+ * so the landing page and every other screen can never drift apart
+ * (docs/DESIGN.md rule 3: never build a second card).
+ */
+const ProductCard = SharedProductCard;
 
 /** Hardware Collection — shadcn Tabs filter + re-flowing product grid. */
 export function CollectionGrid() {
