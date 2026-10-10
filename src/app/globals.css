@@ -284,7 +284,8 @@
  * exposed as CSS variables and consumed via Tailwind arbitrary values
  * (`bg-[var(--surface-1)]`) rather than a global `@theme`, so nothing leaks.
  */
-.home-lux {
+.home-lux,
+.lux {
   --ink: #0a0a0b;
   --surface-1: #101012;
   --surface-2: #17171a;
@@ -305,44 +306,53 @@
   --stage-radius: 36px;
   --soft-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.8);
   --inner-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
 
+/* Only the home page paints its own canvas; `.lux` inherits the body's
+   `--background` so a content screen keeps the storefront shell. */
+.home-lux {
   background-color: var(--ink);
   color: var(--ivory);
 }
 
-/* Editorial display type + fluid scale, scoped to redesigned sections. */
-.home-lux .lux-display,
-.home-lux h1,
-.home-lux h2 {
+/*
+ * Editorial display type + fluid scale. Selectors are widened to `.lux` so the
+ * shared primitives (PageHeader, ProductCard, controls) render identically on
+ * content routes; the Navbar / Testimonials / Footer carry neither class, so
+ * D-030's "nothing leaks" guarantee still holds.
+ */
+:is(.home-lux, .lux) .lux-display,
+:is(.home-lux, .lux) h1,
+:is(.home-lux, .lux) h2 {
   font-family: var(--font-instrument), Georgia, "Times New Roman", serif;
   font-weight: 400;
   letter-spacing: -0.03em;
 }
-.home-lux .lux-h1 {
+:is(.home-lux, .lux) .lux-h1 {
   font-size: clamp(2.75rem, 6vw, 5.5rem);
   line-height: 0.95;
 }
 /* Hero headline is more compact than the global H1 so the fold stays
    professional and never dominates the viewport height. */
-.home-lux .hero-h1 {
+:is(.home-lux, .lux) .hero-h1 {
   font-size: clamp(2.75rem, 5.6vw, 6rem);
   line-height: 0.95;
 }
-.home-lux .lux-h2 {
+:is(.home-lux, .lux) .lux-h2 {
   font-size: clamp(2.25rem, 4.5vw, 4.5rem);
   line-height: 1;
 }
-.home-lux .lux-eyebrow {
+:is(.home-lux, .lux) .lux-eyebrow {
   font-family: var(--font-geist-mono);
   font-size: 11px;
   line-height: 1.2;
   letter-spacing: 0.18em;
   text-transform: uppercase;
 }
-.home-lux .lux-mono {
+:is(.home-lux, .lux) .lux-mono {
   font-family: var(--font-geist-mono);
 }
-.home-lux .lux-tabular {
+:is(.home-lux, .lux) .lux-tabular {
   font-variant-numeric: tabular-nums;
 }
 
@@ -360,10 +370,10 @@
 }
 
 /* Focus rings: visible 2px lime with a 2px offset, scoped to redesigned UI. */
-.home-lux a:focus-visible,
-.home-lux button:focus-visible,
-.home-lux [role="tab"]:focus-visible,
-.home-lux [role="slider"]:focus-visible {
+:is(.home-lux, .lux) a:focus-visible,
+:is(.home-lux, .lux) button:focus-visible,
+:is(.home-lux, .lux) [role="tab"]:focus-visible,
+:is(.home-lux, .lux) [role="slider"]:focus-visible {
   outline: 2px solid var(--lime);
   outline-offset: 2px;
   border-radius: 4px;
@@ -411,22 +421,22 @@
 }
 
 /* Slider (precision color + material gloss) — shadcn Radix slider reskin. */
-.home-lux .lux-slider [data-slot="slider-track"] {
+:is(.home-lux, .lux) .lux-slider [data-slot="slider-track"] {
   height: 10px;
   border-radius: 999px;
   background: var(--surface-3);
 }
-.home-lux .lux-slider [data-slot="slider-range"] {
+:is(.home-lux, .lux) .lux-slider [data-slot="slider-range"] {
   border-radius: 999px;
 }
-.home-lux .lux-slider [data-slot="slider-thumb"] {
+:is(.home-lux, .lux) .lux-slider [data-slot="slider-thumb"] {
   size: 22px;
   border-radius: 999px;
   border: 2px solid var(--lime);
   background: var(--ink);
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
 }
-.home-lux .lux-slider [data-slot="slider-thumb"]:focus-visible {
+:is(.home-lux, .lux) .lux-slider [data-slot="slider-thumb"]:focus-visible {
   outline: 2px solid var(--lime);
   outline-offset: 2px;
 }

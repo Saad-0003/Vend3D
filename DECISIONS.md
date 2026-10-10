@@ -467,4 +467,52 @@ deterministic and reusable outside the collection's own state.
 **Alternatives rejected:** a `card` slot prop threaded through the collection component (still one
 component doing two jobs); a wrapper that recomputed the classes (duplicate styling).
 
+---
+
+## /shop screen (prompt 02)
+
+### D-037 · Hand-written `popover`/`select`, Dialog-based ⌘K search, catalog in `lib/catalog.ts`
+
+**What:** `src/components/ui/popover.tsx` and `src/components/ui/select.tsx` were written by hand
+over the installed `radix-ui` meta-package (the shape D-002/D-013 established) instead of
+`npx shadcn add`. The ⌘K search surface is built on the existing `Dialog` primitive (roving ↑/↓
+cursor, Enter to open, Radix focus trap) rather than a `cmdk` dependency. The catalog data lives in
+`src/lib/catalog.ts` (`Product`, `listProducts()`, `priceBounds`, `allColorways`) as the shared
+client source for the landing page and `/shop`, and `src/lib/catalog-query.ts` holds the pure
+filter/sort/parse/serialise logic that the URL state drives. Prices stay integer cents end-to-end;
+`formatCents()` in `src/lib/format.ts` remains the single UI-edge formatter.
+**Why:** the `shadcn` CLI hangs on this machine's network (the registry fetch never responds), and
+the screen could not ship without a Popover (desktop filters), a Select (sort) and a search surface.
+The two hand-written files follow the installed CLI's own output shape (`data-slot` attributes,
+`cn`, the `radix-ui` sub-path import) so a future CLI install stays recognisable and the files can
+be diffed against upstream. `cmdk` was not added because AGENTS.md §3 forbids new dependencies
+without a logged justification, and the required behaviour is ~40 lines over a primitive the repo
+already ships (D-027's inventory discipline). `lib/catalog.ts` is one client source so the landing
+grid and the archive can never disagree; Phase 4 replaces the body of `listProducts()` with a
+Prisma query and every consumer keeps working because the data already speaks cents.
+**Alternatives rejected:** retrying `npx shadcn add` until the registry responds (network is
+offline; no amount of retrying helps); adding `cmdk` for the command palette (a dependency plus
+bundle cost for behaviour the Dialog primitive already covers); per-screen product arrays (the
+drift D-036 exists to prevent); caching the registry response by hand (fighting the tool instead
+of matching D-013's precedent).
+
+### D-038 · Lux token selectors widened from `.home-lux` to `:is(.home-lux, .lux)`
+
+**What:** the token block and every `.lux-*` utility selector in `src/app/globals.css` now match a
+plain `.lux` class as well as `.home-lux` (`:is(.home-lux, .lux) …`), while only `.home-lux` paints
+its own canvas (`background-color` / `color`). The shared primitives (`PageHeader`, `PageShell`,
+`ProductCard`, `SectionSkeletons`, the studio controls) therefore render identically on content
+routes; `/shop` carries `className="lux"` and inherits the storefront body background so the
+header/footer keep their tokens.
+**Why:** D-030 scoped the lux tokens to `.home-lux` so the redesign could not repaint the protected
+Navbar / Testimonials / Footer, and that guarantee still holds — those sections carry neither class.
+But `/shop` needs the same primitives, and the alternatives were either a second copy of every
+primitive or a second copy of every token, both of which are the drift D-035/D-036 were logged to
+prevent. Widening the selector keeps one source while the protected sections stay untouched.
+**Alternatives rejected:** moving the tokens into a global `@theme` block (D-030's already-rejected
+option — repaints shared sections); duplicating the primitives under a second class (two sources of
+truth); copying the token block into a separate `.lux` scope (two values to keep in sync);
+recolouring the shared components to the storefront tokens (a visible redesign of protected
+sections, forbidden by DESIGN.md rule 4).
+
 
