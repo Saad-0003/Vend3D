@@ -36,10 +36,11 @@ export function StudioFooter({
       <div className="mx-auto flex max-w-[1280px] flex-wrap items-center gap-4 lg:flex-nowrap lg:justify-between">
         <div className="flex flex-col gap-1">
           <span
-            className="lux-mono lux-tabular text-[20px] text-[var(--ivory)]"
+            className="lux-mono lux-tabular flex items-baseline text-[20px] text-[var(--ivory)]"
             aria-live="polite"
             aria-label={`Total ${formatCents(totalCents)}`}
           >
+            <span aria-hidden>$</span>
             <NumberTicker value={totalCents / 100} decimalPlaces={2} startValue={totalCents / 100} />
           </span>
           <span className="lux-mono text-[10px] tracking-[0.16em] text-[var(--faint)] uppercase">

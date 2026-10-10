@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useReducedMotion } from "framer-motion";
@@ -10,13 +9,14 @@ import { toast } from "sonner";
 
 import type { CanvasHandle } from "@/components/studio/three/product-canvas";
 import { useModelSource } from "@/components/studio/three/use-model-source";
+import { StudioCustomization } from "@/components/studio/studio-customization";
 import { StudioFooter } from "@/components/studio/studio-footer";
 import { StudioSidebar } from "@/components/studio/studio-sidebar";
 import { StudioStage } from "@/components/studio/studio-stage";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ProductCard } from "@/components/ui/product-card";
-import { SectionSkeletons } from "@/components/ui/section-skeletons";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SectionSkeletons } from "@/components/ui/section-skeletons";
 import { Button } from "@/components/ui/button";
 import type { Product } from "@/lib/catalog";
 import { formatCents } from "@/lib/format";
@@ -30,8 +30,9 @@ import { useDesignsStore } from "@/stores/designs-store";
 const AUTO_ROTATE_RESUME_MS = 4_000;
 
 /**
- * The studio screen. One component for every product: sections, chips and the
- * footer are derived from `ProductConfig`. Nothing here branches on the slug.
+ * The studio screen. One component for every product: the stage, the sidebar,
+ * the customization block and the footer are all derived from `ProductConfig`.
+ * Nothing here branches on the slug.
  */
 export function StudioScreen({ slug, catalog }: { slug: string; catalog: Product[] }) {
   const product = getProductConfig(slug);
@@ -82,12 +83,23 @@ function StudioProduct({ product, catalog }: { product: ProductConfig; catalog: 
   const totalCents = selectTotalCents(product, quantity);
   const rating = catalog.find((p) => p.id === product.slug)?.rating ?? 5;
 
-  // Rehydrate from localStorage first, then apply `?color=` on top. Both steps
-  // run in this order inside one effect, so the stored state is never overwritten
-  // by a stale default.
+  // Rehydrate from localStorage, then apply `?color=`, in one effect so the
+  // stored state is never overwritten by a stale default.
   useEffect(() => {
     store.persist.rehydrate();
-    init(product, search.get("color"));
+    useDesignsStore.persist.rehydrate();
+    useCartStore.getState().hydrate();
+    // `?design=` restores a saved design, `?line=` restores a cart line. Either
+    // must belong to this product; anything else falls back to defaults.
+    const designId = search.get("design");
+    const lineId = search.get("line");
+    const saved = designId
+      ? useDesignsStore.getState().designs.find((d) => d.id === designId && d.slug === product.slug)
+      : undefined;
+    const line = lineId
+      ? useCartStore.getState().lines.find((l) => l.id === lineId && l.slug === product.slug)
+      : undefined;
+    init(product, search.get("color"), (saved ?? line)?.configuration);
   }, [init, product, search, store]);
 
   useEffect(() => {
@@ -144,7 +156,7 @@ function StudioProduct({ product, catalog }: { product: ProductConfig; catalog: 
   const suggestions = catalog.filter((p) => p.id !== product.slug).slice(0, 4);
 
   return (
-    <div className="flex flex-col gap-10 py-6 lg:gap-16">
+    <div className="lux flex flex-col gap-12 py-6 lg:gap-16">
       <nav aria-label="Breadcrumb" className="flex items-center justify-between gap-4">
         <ol className="lux-mono flex items-center gap-2 text-[11px] tracking-[0.16em] text-[var(--muted)] uppercase">
           <li>
@@ -166,7 +178,7 @@ function StudioProduct({ product, catalog }: { product: ProductConfig; catalog: 
         </Link>
       </nav>
 
-      <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-10">
+      <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-8">
         <StudioStage
           product={product}
           configuration={configuration}
@@ -188,21 +200,28 @@ function StudioProduct({ product, catalog }: { product: ProductConfig; catalog: 
           product={product}
           configuration={configuration}
           onChange={(next) => update(product, next)}
-          decalUrl={decalUrl}
-          onDecalChange={() => setDecalUrl(getDecalAsset(product.slug)?.url ?? null)}
-          placeholder={source === "placeholder"}
           reduced={reduced}
           rating={rating}
           price={formatCents(totalCents)}
+          footer={
+            <StudioFooter
+              quantity={quantity}
+              totalCents={totalCents}
+              onQuantity={setQuantity}
+              onAddToCart={handleAddToCart}
+              onSaveDesign={handleSaveDesign}
+            />
+          }
         />
       </div>
 
-      <StudioFooter
-        quantity={quantity}
-        totalCents={totalCents}
-        onQuantity={setQuantity}
-        onAddToCart={handleAddToCart}
-        onSaveDesign={handleSaveDesign}
+      <StudioCustomization
+        product={product}
+        configuration={configuration}
+        onChange={(next) => update(product, next)}
+        decalUrl={decalUrl}
+        onDecalChange={() => setDecalUrl(getDecalAsset(product.slug)?.url ?? null)}
+        reduced={reduced}
       />
 
       {suggestions.length > 0 ? (
@@ -210,11 +229,12 @@ function StudioProduct({ product, catalog }: { product: ProductConfig; catalog: 
           <h2 id="also-like" className="lux-eyebrow text-[var(--lime)]">
             You may also like
           </h2>
-          <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <ul className="flex snap-x gap-4 overflow-x-auto pb-2 [scrollbar-width:none]">
             {suggestions.map((p, i) => (
               <ProductCard
                 key={p.id}
                 index={i}
+                className="w-[200px] shrink-0 snap-start sm:w-[220px] lg:w-[232px]"
                 product={{
                   id: p.id,
                   name: p.name,
@@ -234,9 +254,9 @@ function StudioProduct({ product, catalog }: { product: ProductConfig; catalog: 
 
 function StudioSkeleton() {
   return (
-    <div className="flex flex-col gap-10 py-6 lg:gap-16" role="status" aria-label="Loading studio">
+    <div className="flex flex-col gap-12 py-6 lg:gap-16" role="status" aria-label="Loading studio">
       <Skeleton className="h-4 w-64 rounded-full" />
-      <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-10">
+      <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-8">
         <Skeleton className="aspect-[4/5] w-full rounded-[var(--card-radius)] lg:h-[calc(100svh-150px)] lg:flex-1" />
         <div className="flex w-full flex-col gap-4 lg:w-[440px] lg:shrink-0 xl:w-[460px]">
           <Skeleton className="h-10 w-2/3 rounded-full" />

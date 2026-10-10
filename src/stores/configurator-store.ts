@@ -26,7 +26,7 @@ export type ConfiguratorState = {
 };
 
 type Actions = {
-  init: (product: ProductConfig, colorParam: string | null) => void;
+  init: (product: ProductConfig, colorParam: string | null, saved?: unknown) => void;
   update: (product: ProductConfig, next: Configuration) => void;
   setQuantity: (qty: number) => void;
   undo: () => void;
@@ -44,10 +44,12 @@ function createConfiguratorStore(slug: string, product: ProductConfig) {
         quantity: 1,
         hydrated: false,
 
-        init(p, colorParam) {
+        init(p, colorParam, saved) {
           if (get().hydrated) return;
           const restored = get().history.present;
-          const base = parseConfiguration(p, restored);
+          // A saved design replaces the in-progress state; it is still reconciled
+          // through the same validator, so tampered or stale JSON falls back safely.
+          const base = saved ? parseConfiguration(p, saved) : parseConfiguration(p, restored);
           const withColor = applyColorParam(p, base, colorParam);
           set({ history: createHistory(withColor), hydrated: true });
         },

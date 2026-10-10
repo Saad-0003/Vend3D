@@ -64,7 +64,7 @@ export function StudioStage({
   return (
     <section
       aria-label={`${product.name} stage`}
-      className="group/stage relative w-full overflow-hidden rounded-[var(--card-radius)] border border-[var(--hairline)] bg-[var(--surface-1)] [box-shadow:var(--inner-highlight)] lg:sticky lg:top-[80px] lg:h-[calc(100svh-128px)] lg:flex-1 max-lg:sticky max-lg:top-[60px] max-lg:h-[52svh]"
+      className="group/stage relative w-full overflow-hidden rounded-[var(--card-radius)] border border-[var(--hairline)] bg-[var(--surface-1)] [box-shadow:var(--inner-highlight)] max-lg:sticky max-lg:top-[68px] max-lg:z-10 max-lg:h-[52svh] lg:sticky lg:top-[84px] lg:h-[calc(100svh-108px)] lg:min-w-0 lg:flex-1"
     >
       <div
         aria-hidden
@@ -92,20 +92,23 @@ export function StudioStage({
         </Suspense>
       </div>
 
-      {placeholder ? (
-        <span className="lux-mono absolute top-4 left-4 rounded-full bg-[var(--surface-2)] px-3 py-1 text-[11px] tracking-[0.16em] text-[var(--muted)] uppercase ring-1 ring-[var(--hairline)]">
-          Placeholder model
+      <div className="pointer-events-none absolute inset-x-4 top-4 flex items-start justify-between gap-3">
+        {placeholder ? (
+          <span className="lux-mono rounded-full bg-[var(--surface-2)] px-3 py-1.5 text-[11px] tracking-[0.16em] text-[var(--ivory)] uppercase ring-1 ring-[var(--hairline-strong)]">
+            Placeholder model
+          </span>
+        ) : (
+          <span />
+        )}
+        <span className="lux-mono hidden rounded-full bg-[var(--surface-2)] px-3 py-1.5 text-[11px] tracking-[0.14em] text-[var(--ivory)] uppercase ring-1 ring-[var(--hairline-strong)] md:inline-flex">
+          Drag to rotate
         </span>
-      ) : null}
-
-      <span className="lux-mono pointer-events-none absolute top-4 right-4 hidden rounded-full bg-black/55 px-3 py-1 text-[11px] tracking-[0.14em] text-white/90 uppercase backdrop-blur md:inline-flex">
-        Drag to rotate
-      </span>
+      </div>
 
       <div
         role="group"
         aria-label="Camera presets"
-        className="absolute top-1/2 left-3 hidden -translate-y-1/2 flex-col gap-2 md:flex"
+        className="absolute top-1/2 left-4 hidden -translate-y-1/2 flex-col gap-2 xl:flex"
       >
         {PRESETS.map((key) => (
           <PresetChip key={key} presetKey={key} onSelect={() => handle.current?.preset(key)} />

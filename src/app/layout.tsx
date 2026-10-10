@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
+import { CartDrawer } from "@/components/shared/cart-drawer";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SmoothScroll } from "@/components/smooth-scroll";
 import { SiteHeader } from "@/components/shared/site-header";
@@ -59,6 +60,7 @@ export default function RootLayout({
             </main>
             <SiteFooter />
             <Toaster position="bottom-center" />
+            <CartDrawer />
           </SmoothScroll>
         </ThemeProvider>
       </body>

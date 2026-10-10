@@ -1,9 +1,10 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState, type MutableRefObject } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import { Canvas, useThree } from "@react-three/fiber";
 import { ContactShadows, Environment, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 
 import type { CameraPresetKey, ProductConfig } from "@/lib/products/config";
@@ -79,7 +80,7 @@ export default function ProductCanvas({
         gl.outputColorSpace = THREE.SRGBColorSpace;
       }}
     >
-      <Environment preset="studio" environmentIntensity={0.35} />
+      <StudioEnvironment />
       <ambientLight intensity={0.25} />
       <directionalLight position={[3, 4, 2]} intensity={1.1} />
       <directionalLight position={[-3, 2, -3]} intensity={0.5} color="#d7e7ff" />
@@ -101,6 +102,19 @@ export default function ProductCanvas({
       />
     </Canvas>
   );
+}
+
+/**
+ * Soft studio light from the bundled RoomEnvironment. Local, so the viewer never
+ * waits on a remote HDR. The scene is built once and disposed with the canvas.
+ */
+function StudioEnvironment() {
+  const scene = useMemo(() => {
+    const pmrem = new THREE.PMREMGenerator(new THREE.WebGLRenderer());
+    return pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  }, []);
+  useEffect(() => () => scene.dispose(), [scene]);
+  return <Environment map={scene} environmentIntensity={0.6} />;
 }
 
 function CameraRig({
