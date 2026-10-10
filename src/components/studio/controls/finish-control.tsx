@@ -102,7 +102,9 @@ export function FinishControl({
           e.currentTarget.focus();
           commit(glossFromPointer(e.clientX));
         }}
-        onPointerLeave={() => commit(30)}
+        onPointerLeave={() => {
+          if (!interactive) commit(30);
+        }}
         onKeyDown={(e) => {
           if (!interactive) return;
           if (e.key === "ArrowRight" || e.key === "ArrowUp") commit(value + 5);

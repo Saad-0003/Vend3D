@@ -516,3 +516,93 @@ recolouring the shared components to the storefront tokens (a visible redesign o
 sections, forbidden by DESIGN.md rule 4).
 
 
+
+## Studio engine (prompt 03)
+
+### D-039 · One studio screen driven by `lib/products/config.ts`
+
+**What:** `StudioScreen` renders every product. Sections, scroll-spy chips, decal zones, engrave
+fonts, extras and the details accordion all come from a `ProductConfig` entry. No component
+branches on the slug. Four entries ship (tee, mug, cap, bottle), seeded from `lib/catalog.ts` so
+name, price and swatches cannot drift from the shop.
+**Why:** prompts 03a–03d add products by data alone; per-product components would multiply the
+maintenance cost of the same behaviour.
+**Alternatives rejected:** a component per product (duplicates the sidebar four times); reading
+the config from Prisma now (Phase 4 has not landed, and the catalog already speaks cents).
+
+### D-040 · Zustand stores keyed by slug; configuration persisted per slug
+
+**What:** `getConfiguratorStore(product)` returns one store per slug, with `history`, `quantity` and
+`hydrated`. Only the present configuration is written to `localStorage` under
+`vend3d-configurator:<slug>`. History is not persisted. `init()` runs after `persist.rehydrate()`
+and applies `?color=` on top.
+**Why:** switching products must never leak colours or decals across products, and undo history
+across a reload would be confusing.
+**Alternatives rejected:** one global configurator store with the slug as a field (cross-product
+leakage risk); persisting history (large and not requested).
+
+### D-041 · Cart and designs are client mirrors until Phases 7 and 8
+
+**What:** `stores/cart-store.ts` and `stores/designs-store.ts` persist to `localStorage`. The cart
+line stores `unitCents` as a snapshot at add-time. Thumbnails are PNG data URLs captured from the
+canvas.
+**Why:** the studio needs working add-to-cart and save flows now. The server contracts land in
+Phases 7 and 8; these stores are the drop-in client side.
+**Alternatives rejected:** server actions before the schema exists (would invent Phase 7/8 tables).
+
+### D-042 · Placeholder model when the GLB is missing or fails to load
+
+**What:** `useModelSource` issues a HEAD request for the GLB with a 20s abort. Missing or slow files
+resolve to `placeholder`. A GLB that exists but fails to parse is caught by `GlbErrorBoundary`,
+which renders the same placeholder. The stage shows a "Placeholder model" badge in both cases.
+**Why:** the owner supplies GLBs later; the page must work without them and must never crash on a
+bad file.
+**Alternatives rejected:** blocking the page until a model loads (the owner has not supplied files,
+so the page would never render).
+
+### D-043 · Shared `FinishControl` and `HueColorControl` no longer reset on pointer leave when interactive
+
+**What:** both controls committed a default (matte 30, lime hue) on `onPointerLeave` in every mode.
+Now the reset runs only when `interactive` is false, so the landing page keeps its hover-reset
+behaviour and the studio keeps the user's value.
+**Why:** a studio change must not vanish when the cursor leaves the bar.
+**Alternatives rejected:** a separate studio control (two controls for the same job, which the
+DESIGN.md rule 3 forbids).
+
+### D-044 · Switch, ToggleGroup and Accordion wrappers hand-written
+
+**What:** `components/ui/switch.tsx`, `toggle-group.tsx` and `accordion.tsx` follow the same
+`data-slot` and `radix-ui` sub-path shape as `popover.tsx` and `select.tsx` (D-037).
+**Why:** the shadcn CLI cannot reach its registry from this machine (D-037), and the studio needs
+all three. Radix already ships each primitive; no new dependency.
+**Alternatives rejected:** adding a second Radix package (AGENTS §3 requires logging a new dependency).
+
+### D-045 · `/customize/[productId]` redirects to `/products/[id]`
+
+**What:** the customize route forwards to the product route and keeps the query string.
+**Why:** the studio has one URL. Two screens would drift.
+**Alternatives rejected:** rendering the studio from both routes (duplicate screens, duplicate
+metadata).
+
+### D-046 · Decals are validated, not uploaded
+
+**What:** PNG/JPG/SVG under 2 MB, validated client-side by `DecalDropzone` (its existing rule).
+The prompt asked for 5 MB; I kept the 2 MB rule already in `DECAL_MAX_BYTES` and plan.md §Phase 5.
+Artwork is an object URL held in memory (`lib/products/decal-assets.ts`) and is not persisted.
+**Why:** plan.md is the contract, and the existing validator already enforces it. After a reload the
+user re-uploads artwork; the persisted configuration keeps only the decal settings.
+**Alternatives rejected:** raising the limit to 5 MB (conflicts with plan.md; logged here so the
+owner can decide).
+
+### D-047 · Price is the base catalog price
+
+**What:** the footer total is `unit price × quantity` in integer cents. No add-on fees.
+**Why:** plan.md defines no add-ons (prompt rule: do not invent add-on fees).
+
+### Open items (not done in this prompt)
+
+- Real GLBs are not present. Models come from `public/models/*.glb` when the owner adds them.
+- `docs/assets` poster image is missing, so the loading state uses a skeleton instead of a poster.
+- Cart drawer and bag-icon fly-to animation are not built; the toast opens the drawer state.
+- "You may also like" uses the catalog; per-product cards reuse `ProductCard` unchanged.
+- Responsive checks at 390, 768, 1024, 1440 and 1920 have not been run in a browser yet.

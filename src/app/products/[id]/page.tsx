@@ -1,29 +1,31 @@
 import type { Metadata } from "next";
-import { PagePlaceholder } from "@/components/shared/page-placeholder";
-import { Badge } from "@/components/ui/badge";
+import { Suspense } from "react";
 
-export const metadata: Metadata = { title: "Product" };
+import { StudioScreen } from "@/components/studio/studio-screen";
+import { SectionSkeletons } from "@/components/ui/section-skeletons";
+import { products } from "@/lib/catalog";
+import { getProductConfig } from "@/lib/products/config";
 
-export default async function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
+type Params = Promise<{ id: string }>;
+
+export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  const { id } = await params;
+  const product = getProductConfig(id);
+  return { title: product ? product.name : "Product not found" };
+}
+
+/**
+ * `/products/[id]` opens the studio for that product. Unknown slugs render the
+ * studio's not-found state inside the normal layout rather than crashing.
+ */
+export default async function ProductDetailPage({ params }: { params: Params }) {
   const { id } = await params;
 
   return (
-    <PagePlaceholder
-      eyebrow="Product"
-      title="Product detail"
-      description={`Preview, material options and the customize call to action for “${id}”. Real product data arrives with the Phase 4 catalog.`}
-    >
-      <div className="flex flex-wrap gap-2">
-        <Badge variant="outline" className="text-muted-foreground">
-          slug → id lookup (Phase 4)
-        </Badge>
-        <Badge variant="outline" className="text-muted-foreground">
-          unknown slug → 404 (Phase 4)
-        </Badge>
-        <Badge variant="outline" className="text-muted-foreground">
-          soft-deleted → 404 (Phase 4)
-        </Badge>
-      </div>
-    </PagePlaceholder>
+    <div className="mx-auto w-full max-w-[1280px] px-4 sm:px-6 lg:px-12">
+      <Suspense fallback={<SectionSkeletons variant="product-grid" count={4} />}>
+        <StudioScreen slug={id} catalog={products} />
+      </Suspense>
+    </div>
   );
 }

@@ -99,7 +99,9 @@ export function HueColorControl({
           commit(hueFromPointer(e.clientX));
         }}
         // Leaving the bar returns to brand lime — the landing behaviour.
-        onPointerLeave={() => commit(LIME_HUE)}
+        onPointerLeave={() => {
+          if (!interactive) commit(LIME_HUE);
+        }}
         onKeyDown={(e) => {
           if (!interactive) return;
           const step = e.shiftKey ? 12 : 3;
