@@ -163,8 +163,8 @@ Geist Mono (`--font-geist-mono`).
   `radial-gradient(circle, var(--lime-glow), transparent 70%)`; product image
   `drop-shadow-[0_40px_50px_rgba(0,0,0,0.5)]`; product-card hover wash
   `radial-gradient(120% 80% at 50% 120%, <hex>33, transparent 70%)`.
-- **Bento spotlight:** `radial-gradient(220px circle at X% Y%, var(--lime-glow), transparent 70%)`
-  from spring-smoothed pointer position (opt-in `glow` prop).
+- **Bento spotlight:** removed with the home precision section (commit `7f3177f`). No
+  spotlight prop exists in the codebase; do not reintroduce it without a logged decision.
 
 ---
 
@@ -234,7 +234,7 @@ disabled variant: `size-6 opacity-40 ring-1`.
 `border-radius: 999px`; thumb `size: 22px; border-radius: 999px; border: 2px solid
 var(--lime); background: var(--ink); box-shadow: 0 2px 10px rgba(0,0,0,0.6)`, focus
 `outline: 2px solid var(--lime); outline-offset: 2px`.
-Landing demo tracks: hue
+Control tracks (`src/components/studio/controls/`, custom bars, not `.lux-slider`): hue
 `linear-gradient(to_right,#f43f5e,#facc15,#c6f135,#22d3ee,#6366f1,#f43f5e)`, gloss
 `linear-gradient(to_right,#2a2a2e,#f3f0e8)`; bar `h-5 rounded-full ring-1
 ring-[var(--hairline)]`, thumb `size-4 border-2 border-[var(--lime)] bg-[var(--ink)]`.
@@ -249,7 +249,9 @@ ring-[var(--hairline)]`, thumb `size-4 border-2 border-[var(--lime)] bg-[var(--i
 Not in the landing page today — specified in `docs/ui-reference/HOMEPAGE.md` as a mono
 pill reading `DEPTH: 0.12mm FIBER`. `EngraveControl` builds it from the tokens above
 (`lux-mono`, `text-[11px]`, `tracking-[0.16em]`, uppercase, `--surface-2` fill,
-`--hairline` ring).
+`--hairline` ring). Its depth track is a native `input[type=range]` with `accent-[var(--lime)]`
+and an inline lime-to-`--surface-3` gradient fill; it does **not** use `.lux-slider`.
+Min/max are 0.05–0.40 mm in 0.01 steps.
 
 ### Scroll progress
 `ScrollProgress` — `fixed inset-x-0 top-0 z-40 h-0.5 origin-left bg-[var(--lime)]`,
@@ -280,7 +282,7 @@ lg:grid-cols-12`, two link columns with `text-[11px] tracking-[0.14em] uppercase
 | Reduced-motion reveal | `opacity` only, `duration 0.4` | `revealCalm` |
 | Stagger | `0.08s` (0 when reduced) | `staggerParent` |
 | Viewport trigger | `{ once: true, margin: "-15% 0px -15% 0px" }` | `viewportOnce` |
-| Section heading words | `0.7s`, `EASE`, `delay i * 0.09`, blur 10px→0 | precision-bento |
+| Section heading words | `0.7s`, `EASE`, `delay i * 0.09`, blur 10px→0 | removed with home precision section (`7f3177f`) |
 | Card list reveal | `0.7s`, `EASE`, `delay i * 0.08`, blur 8px | collection |
 | Card exit | `opacity 0, scale 0.97`, `0.25s` | collection |
 | Hover | card `y: -4` (disabled under reduced motion); image `scale-[1.04]` over `duration-700`; "Customize" bar `translate-y-full → 0` `duration-500`; border colour `duration-500`; arrow `translate-x-1` `duration-300` | collection, bento |
@@ -347,17 +349,34 @@ All under `src/components/` and reusable from any route.
 | --- | --- | --- |
 | `PageShell` | `src/components/ui/page-shell.tsx` | page transition (fade + 8px rise, 800ms, `EASE`) + 1280px content width + 24/48px gutters + 80/128px section rhythm. Lenis is already global in the root layout, so no second provider is needed. |
 | `PageHeader` | `src/components/ui/page-header.tsx` | mono eyebrow (`.lux-eyebrow`, lime), serif H1 (`lux-display`), optional muted intro, optional right-side action. |
-| `ProductCard` | `src/components/ui/product-card.tsx` | the landing-page collection card, re-exported so every screen renders one identical card. |
+| `ProductCard` | `src/components/ui/product-card.tsx` | the landing-page collection card, now the single source. `home/collection.tsx` imports it; every screen must use it rather than a copy. |
 | `EmptyState` | `src/components/ui/empty-state.tsx` | dashed-lime hairline panel, mono eyebrow, serif title, muted body, optional CTA. |
 | `ErrorState` | `src/components/ui/error-state.tsx` | destructive-tinted panel, `role="alert"`, retry button. |
 | `SectionSkeletons` | `src/components/ui/section-skeletons.tsx` | `card-grid` / `product-grid` / `list` rows in card radius + `Skeleton`. |
-| `HueColorControl` | `src/components/studio/controls/hue-color-control.tsx` | **moved** from `home/precision-demos.tsx` (`ColorDemo`): gradient hue slider + big swatch + hex + PMS code + `hueColor` helper. |
-| `FinishControl` | `src/components/studio/controls/finish-control.tsx` | **moved** (`MaterialDemo`): matte↔glossy slider driving a specular highlight. |
-| `DecalDropzone` | `src/components/studio/controls/decal-dropzone.tsx` | **moved** (`DecalsDemo`): dashed lime SVG/PNG zone, now clickable/uploadable with validation (PNG/JPG/SVG ≤ 2 MB). |
-| `EngraveControl` | `src/components/studio/controls/engrave-control.tsx` | new: depth chip `DEPTH: 0.12mm FIBER` + `.lux-slider` depth control. |
-| `hslToHex` | stays in `src/components/home/motion.ts`, re-exported by `hue-color-control.tsx` | unchanged; the home page keeps importing it from `motion.ts`. |
+| `HueColorControl` | `src/components/studio/controls/hue-color-control.tsx` | gradient hue slider + big swatch + hex + PMS code + `hueColor` / `pmsCode` helpers. `interactive` prop gives the studio a keyboard-operable `role="slider"`. |
+| `FinishControl` | `src/components/studio/controls/finish-control.tsx` | matte↔glossy slider driving a specular highlight. `interactive` prop as above. |
+| `DecalDropzone` | `src/components/studio/controls/decal-dropzone.tsx` | dashed lime SVG/PNG zone, clickable and uploadable with validation (PNG/JPG/SVG ≤ 2 MB). |
+| `EngraveControl` | `src/components/studio/controls/engrave-control.tsx` | depth chip `DEPTH: 0.12mm FIBER` + native range input (0.05–0.40 mm). |
+| `hslToHex` | `src/components/home/motion.ts` | imported by `hue-color-control.tsx`; home keeps importing it from `motion.ts`. |
 
-The three landing demos in `src/components/home/precision-demos.tsx` now **delegate** to the
-moved controls — no duplicated markup. Prompt 01 removes the bento section; nothing else
-imports `precision-demos`, so deleting it later breaks nothing.
+All four controls are exported from `src/components/studio/controls/index.ts`. The old
+`home/precision-demos.tsx` no longer exists and nothing imports it. Its demos were removed
+with the home precision section in `7f3177f`.
+
+## 9. Verified status (audit against code)
+
+Checked in this pass. Typecheck and lint are clean for `src/components/ui` and
+`src/components/studio/controls`.
+
+- **Present:** `PageShell`, `PageHeader`, `ProductCard`, `EmptyState`, `ErrorState`,
+  `SectionSkeletons`, and all four studio controls. `SmoothScroll` (Lenis) is mounted in
+  `layout.tsx`.
+- **Wiring gaps, not yet fixed (later prompts own these):**
+  - Testimonials: "Launch Your Canvas" and "See all reviews" both link to `/products`.
+    The spec says `/studio` and `/reviews`. No `/reviews` route exists yet.
+  - Navbar and Footer contain no `/studio` or `/designs` hrefs yet.
+- **Spacing mismatch:** global rule 8 says 128px desktop. `Section` uses `lg:py-36` (144px).
+  `PageShell` uses `md:py-32` (128px). Content screens should use `PageShell`. The rule text
+  is kept verbatim; the code value is what is shipped.
+- **Card radius:** `--card-radius` is 28px, not the 40px in the brief. See §1.2.
 
