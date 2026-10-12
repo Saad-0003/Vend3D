@@ -599,10 +599,283 @@ owner can decide).
 **What:** the footer total is `unit price × quantity` in integer cents. No add-on fees.
 **Why:** plan.md defines no add-ons (prompt rule: do not invent add-on fees).
 
+### D-048 · `/checkout` ships as a client island with a client order store
+
+**What:** the prompt's three-step checkout (Details → Payment → Review) with the demo card is
+built as a client component tree: `components/checkout/*`, driven by pure helpers in
+`lib/payment/card.ts`, `lib/checkout/{schemas,shipping,address,order}.ts`, and a persisted
+`stores/orders-store.ts` reachable at `/order/[id]`.
+
+Three deviations from plan.md Phase 9 as written, all forced by phases that are not built yet
+(Phase 2's schema, Phase 3's auth, Phase 8's server cart):
+
+1. **Order records live in a zustand persisted store, not the DB.** Phase 2's `Order` table and
+   Phase 9's `placeOrder` server action do not exist, and `src/server/` is empty. The store keeps
+   Phase 9's exact contract (id, snapshotted items + address, integer-cent totals, status,
+   `checkoutKey`) and its idempotency rule, so the swap is a store-body change (D-041).
+2. **`status` is `"Placed"`, not `PAID`.** The prompt's word; `PAID` belongs to the enum the
+   migration will define, and `placeOrder` remains the only writer then. Logged so the mapping is
+   deliberate rather than an oversight.
+3. **Confirmation is `/order/[id]`**, the prompt's route, instead of `/checkout/success?order=`
+   from plan.md. It is read-only: it only reads a record `placeOrder` already wrote.
+
+Shipping prices are placeholders ($0 / $9.00) marked `TODO(Phase 9)` in code and on screen
+("Placeholder rates — plan.md sets no shipping rule yet."), because plan.md defines no shipping
+rule and inventing carrier prices would be scope the prompt forbade.
+
+Card data is held only by the payment step's own `useForm`, and that step resets its form on a
+valid submit, so number/expiry/CVC cannot outlive it — the screen keeps brand + last4 and nothing
+else, matching plan.md's "Card data stays in the browser".
+
+**Why:** build the whole shopper-visible flow now without inventing a backend, and keep every
+seam (field names, idempotency, totals) so Phase 9's server work replaces bodies, not callers.
+
+**Alternatives rejected:** a `placeOrder` server action with a stubbed DB (needs Phase 2); keeping
+the old placeholder screen (the prompt replaces it); inventing courier rates.
+
+#### D-048 addendum · localStorage quota hardening (review finding, fixed)
+
+**What:** the orders store persisted the whole order, including `thumbnail` — a full-canvas
+`canvas.toDataURL("image/png")` that is commonly megabytes at the studio's `dpr`. The ~5 MB origin
+quota is shared with `vend3d-cart` and `vend3d-designs`, which already hold the same data URLs.
+When `setItem` threw `QuotaExceededError`, it propagated *after* the order had been written to
+memory: the cart never cleared, `/order/[id]` was never reached, and every retry failed the same
+way because `checkoutKeyRef` is committed before the call.
+
+**Fix:** `persistedOrders()` strips thumbnails from what is written (`JSON.stringify` drops
+`undefined`, so no data URL is ever stored), and a `safeStorage` wrapper swallows write errors so
+persistence failure degrades to an in-memory order instead of an exception. `OrderItem.thumbnail`
+became optional; `/order/[id]` falls back to the product image, the same fallback the cart already
+uses for an uncaptured snapshot. `clearCart()` is guarded in the checkout screen, so a cart
+persistence failure cannot turn a placed order into an error message.
+
+**Why:** losing reload durability is recoverable; failing an order that already succeeded is not.
+
+**Alternatives rejected:** letting the error surface (reproduces the dead-end); downscaling the
+thumbnail with canvas work inside `lib/checkout/order.ts` (breaks the purity the 100%-coverage
+threshold on `src/lib/**` depends on).
+
 ### Open items (not done in this prompt)
+
+- **Phase 3's server half is still unwritten.** `src/middleware.ts` (session refresh + route
+  protection for `/cart`, `/checkout`, `/orders`, `/designs`, `/admin`), `requireUser()` /
+  `requireAdmin()` in `src/server/auth.ts`, the idempotent Profile upsert on first login, the admin
+  403 gate, graceful session expiry, and Google OAuth. The mock's sign-in is browser-local, so
+  nothing here survives a reload on another device.
+- `/checkout`, `/cart`, `/orders` and `/designs` are **not yet route-guarded**. plan.md Phase 3
+  puts `/checkout` behind auth; guarding it now would break the guest demo checkout the earlier
+  prompt built and shipped (and its passing e2e flow), so the guard is deferred to the middleware
+  work above rather than added as a client-side half-measure.
+- **Server-rendered forms and hydration timing.** Auth, checkout and order forms attach handlers
+  only after hydration, so a click that lands in that window is a no-op. `AuthForm` removes the
+  native-submit escape hatch and gates its button; the other forms still use `onSubmit` and should
+  get the same treatment when Phase 3 touches them.
+- `lib/cart`, `lib/products` and `lib/designs` are below the coverage thresholds (`cart-store`,
+  `config.ts`, `library.ts`); `src/lib/auth/**` and `src/stores/auth-store.ts` are at 100%.
+
+- `placeOrder` server action, price recomputation from the DB, auth + rate limiting, and the
+  `PAID`/`DEMO_CARD` enum — Phase 9's server half, blocked on Phase 2.
+- **`OrderRecord` is a superset of ARCHITECTURE.md §5's `Order` table.** The prompt required
+  address, subtotal, shipping and `shippingMethodId` in the order record; §5 defines only
+  id/userId/status/totalCents/checkoutKey/paymentMethod/cardBrand/cardLast4/createdAt. Phase 9 must
+  either extend `Order` with those columns or move them to a shipping-address table — and add the
+  `userId` FK (no auth exists yet) and `paymentMethod`. Logged now because it is a requirement that
+  contradicts the schema, not something to discover mid-Phase-9.
+- `/checkout/success`, `/checkout/cancelled` and `/orders` history remain out of scope here; the
+  phase's plan.md checkboxes stay unchecked until Phase 9 is complete.
+- The order is not emailed (plan.md documents the confirmation email as a stub), and orders are
+  per-browser until the server holds them.
+- `/checkout` adds ~24 kB route-local JS (react-hook-form + zod) over `/cart`; three.js stays out
+  of the graph, so the customizer budget is untouched.
+- **Cart drawer Checkout link intermittently did not navigate** (link takes focus, drawer stays
+  open, nothing happens — reproduced ~1 in 3 with no load). This was the same hydration mismatch
+  as D-050, not a Radix animation problem as first guessed; the drawer's link is one of the links
+  that lost hydration. Fixed by D-050.
+- **`/cart` and `/products/[id]` log the LCP warning** — their product `next/image` has no
+  `priority`, so Next asks for it on the above-the-fold thumbnail. Dev-only, no test catches it.
+  `/order/[id]` was fixed in this prompt (same class).
+
+### Review findings left open (chose "fix critical only")
+
+From the `/review uncommitted` pass, four non-blocking findings were deliberately left:
+
+- `src/lib/checkout/order.ts:115` — `sortOrdersNewest` is exported with no production consumer
+  (only its own test uses it); the store already prepends newest-first.
+- `src/components/order/order-screen.tsx:29` — reads with an inline `orders.find()` instead of the
+  store's `findOrder` action, leaving that action production-dead with its logic duplicated.
+- `src/components/order/order-screen.tsx:93` — the order line-item and totals rows are duplicated
+  in `order-summary-card.tsx` (~40 lines of identical JSX, including a verbatim chip class string),
+  and the two copies have already drifted on how shipping is displayed.
+- Unused exports introduced: `CheckoutStepId` (`checkout-progress.tsx`), `CARD_NUMBER_LENGTH`
+  (`card.ts`), the `ORDER_STATUS` re-export (`orders-store.ts`), `toOrderItems` (`order.ts`).
+
+### Carried over from earlier prompts (still open)
 
 - Real GLBs are not present. Models come from `public/models/*.glb` when the owner adds them.
 - `docs/assets` poster image is missing, so the loading state uses a skeleton instead of a poster.
 - Cart drawer and bag-icon fly-to animation are not built; the toast opens the drawer state.
 - "You may also like" uses the catalog; per-product cards reuse `ProductCard` unchanged.
-- Responsive checks at 390, 768, 1024, 1440 and 1920 have not been run in a browser yet.
+- Responsive checks at 390, 768, 1024, 1440 and 1920 have not been run in a browser yet. (This
+  prompt verified 1440 by hand and 390 in a mobile emulator.)
+
+### D-049 · `/order/[id]` redesigned as a centred confirmation page
+
+**What:** the prompt replaced the two-column confirmation with a calm centred column (640px):
+a self-drawing SVG tick in a lime-glow ring (`pathLength`, ~900ms, no confetti, opacity-only under
+reduced motion), serif H1 "Your order is in production.", muted "A demo confirmation, no real charge
+was made.", the order number in mono, a fulfilment stepper (Placed → Proofing → Production →
+Dispatched, horizontal from `sm`, vertical below) with "Dispatch within 48 hours", one Order
+summary card holding items + config chips + address + totals, and the CTAs Back to shop `/shop`,
+View designs `/designs`, Print receipt (browser print). The old "Thank you." / lime "Order placed"
+panel, the right-hand sticky card and the "Back to cart" CTA are gone.
+
+**Why:** the prompt's layout. The copy also drops the old screen's implication that anything was
+taken, and the stepper gives the demo a production narrative without inventing a fulfilment
+status field the order record does not have — only "Placed" is attested, so the other three stages
+stay dim rather than claiming progress.
+
+**Alternatives rejected:** deriving stage progress from `status` (the record has one value);
+confetti or a looping animation (the prompt forbade it; DESIGN.md §1 keeps motion quiet).
+
+### D-050 · `PageShell` and hero `initial` no longer branch on reduced motion
+
+**What:** `PageShell` and `home/hero.tsx` computed `initial` from `useReducedMotion()`
+(`reduced ? {opacity: 0} : {opacity: 0, y: 8}` / `y: "110%"`). `useReducedMotion()` resolves the
+preference **synchronously on the client** (it seeds state from `matchMedia`) but cannot on the
+server, so a reduced-motion visitor hydrated with a *different* style than the server rendered.
+React logs "A tree hydrated but some attributes … didn't match", refuses to patch the subtree, and
+the shell's contents lose hydration — which is why links inside it intermittently did nothing on
+click. It reproduced 1-in-3 with no load on `/cart`'s Checkout button, and it hit every content page.
+
+The initial style is now the same on both sides; the preference lives in the transition instead
+(`duration: reduced ? 0 : 0.85`), which is SSR-safe and still skips the motion.
+
+**Why:** it was the root cause of two flaky e2e failures, not a test-only problem: real shoppers
+with `prefers-reduced-motion: reduce` were meeting dead links on the storefront's shell. Verified
+after the fix: hydration is clean on `/`, `/shop`, `/cart` and `/order/[id]` in both motion modes,
+`/cart`'s Checkout navigates, and the hero still rises 110% → 0% for everyone else.
+
+**Alternatives rejected:** branching only inside `animate` (the mismatch is in `initial`, so it
+would still mismatch); `suppressHydrationWarning` (silences the warning without restoring
+hydration); detecting the preference on the server (impossible without a cookie round-trip).
+
+**Scope note:** `checkout-screen`, `step-error`, `cart-button`, `shop-screen` and
+`studio-section-card` carry the same `initial={reduced ? …}` shape, but each renders *after*
+hydration (inside `AnimatePresence`, on interaction, or on error) so none of them mismatches today.
+They are flagged in the open items below so the next person does not copy the pattern.
+
+### D-051 · Auth UI built against a swappable `AuthService`
+
+**What:** the prompt's auth surface — `AuthDialog` (Radix Dialog; Radix `Tabs` `variant="line"` for
+the sliding underline, floating-label fields, lime pill, ghost "Open full page"), `/login` and
+`/signup` as a 50/50 split (dark stage with the slowly rotating poster and the serif "See it. Shape
+it. Own it." on the left; form Card on the right, stage `hidden lg:block` so mobile gets just the
+form), and `/account` as the guarded landing page. Navbar wiring only: signed out opens the dialog,
+signed in opens the Account / Designs / Orders / Sign-out Popover, plus the "Welcome back." toast.
+
+**Why an interface rather than direct Supabase:** plan.md defines the approach (Supabase Auth,
+`middleware.ts`, `requireUser()` / `requireAdmin()`, a Profile row), but Phase 2's schema and Phase
+3's wiring do not exist — there is no `prisma/`, no `src/server/`, no `src/middleware.ts`. So
+`src/lib/auth/service.ts` declares that contract (`AuthService`) and implements it as a
+browser-local mock; the store and every component speak only the interface, so Phase 3 replaces one
+module rather than every caller.
+
+The mock **never stores a password** — not even a hash. Rehearsing "keep the credential in the
+store" would be exactly the habit the real swap has to un-learn, so the mock establishes that an
+account exists rather than checking a secret.
+
+**Two decisions worth recording:**
+
+- **Sign-in and sign-up use different existence messages, deliberately.** Wrong credentials return
+  "Incorrect email or password." for both an unknown email and a wrong password, so the form is not
+  an account-enumeration oracle; sign-up must be unambiguous ("already exists"), which is the
+  trade-off plan.md Phase 3 sanctions.
+- **The auth form has no native submit path at all.** The button is `type="button"` and Enter is
+  handled explicitly, because on a client-side navigation React attaches the form's `onSubmit` only
+  once hydration finishes — and a click in that window performs a native **GET** submit, which puts
+  the password straight into the URL (verified reachable via `/login` → "Create one"). The e2e spec
+  pins this. `/login` and `/signup` also link to each other with plain `<a>` for the same reason: a
+  soft navigation can leave the target form non-interactive for a beat.
+
+**Navbar carries no `useSearchParams()`** — the hook needs a Suspense boundary and this island
+renders on every route, including the statically generated ones (it broke `next build` on
+`/account`). The `?next=` contract belongs to the full pages, which read `next` server-side and
+re-sanitise it. `/account` is guarded client-side by `RequireAuth` (redirect to `/login?next=`,
+return after), which is a convenience until `middleware.ts` exists — plan.md Phase 3 is explicit that
+only middleware can be trusted.
+
+**Alternatives rejected:** calling Supabase with a stubbed DB (needs Phase 2); storing a password to
+make the mock "work" (rehearses a real anti-pattern); server actions for the mock (there is no
+`src/server/` yet).
+
+### D-052 · Local e2e runs are serial (dev-server route compilation is the bottleneck)
+
+**What:** `playwright.config.ts` now runs `workers: 1` — the same value CI already used — so a
+local `npm run test:e2e` executes one test at a time. The webServer is still `npm run dev`.
+
+**Why:** the suite failed 5 of 58 in ways that looked like product bugs but were not. `next dev`
+compiles each route on its first hit and those compiles are CPU-bound and serial per route; on this
+machine `/customize/[productId]` alone is 3.8s over 3719 modules. When two browsers cold-hit
+different routes at once they starve each other, and a starved navigation is indistinguishable
+from a broken one: `router.push` waits on a flight payload that never arrives (sign-up had clearly
+completed — the navbar showed the signed-in "Account menu" — while the URL sat on `/signup`), the
+cart's plain `<Link href="/checkout">` click "did nothing", or hydration never landed and the
+submit button stayed disabled for the whole timeout. The failing test changed between runs at the
+same worker count, which is the giveaway.
+
+Confirmed with instrumented runs rather than by guessing: the dev server log shows exactly one
+compile per route with no watcher churn, first hits costing 2-6s and later hits 100-800ms. The
+checkout spec already mitigates this on purpose — it seeds the cart through an init script because
+"compiling it in every parallel worker starves the rest of the suite" — so serialising the suite is
+the same fix applied to the runner instead of to one spec.
+
+**Alternatives rejected:** raising the `test.slow()` budgets (hides a real resource limit and slows
+everyone's runs); pointing the suite at a production build (the genuinely deterministic option, but
+it changes every run's semantics and the specs were written and verified against dev); a local
+retry (D-050's lesson — retries hide causes, and the repo already documents them as masking).
+
+### D-053 · Portalled surfaces carry `lux` themselves
+
+**What:** `lux` added to the className of the portalled contents that consume lux tokens —
+`auth-dialog.tsx`, `account-menu.tsx` (auth), `designs-screen.tsx` (two Selects, the card
+DropdownMenu and the delete Dialog) and `studio-footer.tsx` (save-design Popover).
+`search-dialog.tsx` already did this, so it was the convention, not a new pattern.
+
+**Why:** the lux tokens (`--surface-1`, `--hairline`, `--ivory`, `--card-radius`,
+`--inner-highlight`) are scoped to `.home-lux, .lux` (D-030, deliberately, so nothing leaks to the
+Navbar/Footer/Testimonials). Radix Dialog/Popover/Select/DropdownMenu render through a portal at
+`document.body` — outside every `.lux` ancestor. Every `var(--…)` on those nodes therefore resolved
+to nothing: `background-color` came out `rgba(0, 0, 0, 0)` (the login dialog was, per the human,
+"totally transparent"), the border and `--inner-highlight` ring vanished, the 28px/16px radii
+collapsed to `0`, and text colours fell back to inheritance. The markup stayed perfect, which is why
+typecheck, lint and every DOM-based e2e assertion were blind to it — only computed style exposes it.
+
+**Alternatives rejected:** moving the tokens to `@theme`/`:root` (fixes all eight at a stroke but
+discards D-030's scoping guarantee, so the palette becomes global); duplicating hex values at each
+call site (drifts from the palette); a `.lux-scope` alias class (a second name for one thing).
+A comment in `globals.css` now states the portal rule, and an e2e test asserts the computed
+background of the auth dialog and the account menu so the regression cannot come back silently.
+
+### D-054 · `/account` is a shell, and `Tabs` now forwards `orientation`
+
+**What:** `/account` rebuilt as a five-panel shell (Profile · Orders · Saved designs · Addresses ·
+Settings) behind a vertical tab list that collapses to a scrolling chip row below `lg`. The header
+greets the shopper by first name. Orders and Saved designs read the same client stores their full
+screens use, so they show real data; Profile, Addresses and Settings hold local state only, and
+"Delete account" clears the local stores and signs out. `DesignCard` moved out of
+`designs-screen.tsx` into `components/designs/design-card.tsx` so both screens share one card.
+
+**Why:** the prompt asked for the shell and the UX only, with the backend left to later phases, so
+nothing here invents persistence — the panels are honest about it in their own copy. Sharing
+`DesignCard` follows DESIGN.md rule 3 (never a second card style) and keeps the library and the
+account grid from drifting.
+
+The tab list also exposed a bug in the shared primitive: `components/ui/tabs.tsx` destructured
+`orientation` and passed it only as a `data-orientation` attribute, so Radix never received it. The
+tablist therefore kept `aria-orientation="horizontal"` and roving focus kept moving left/right
+inside a vertically stacked list — the arrow keys simply did nothing on desktop. `orientation` now
+reaches the primitive as well as the attribute, which is what the shadcn wrapper meant to do.
+
+**Alternatives rejected:** a persisted account store for the mock (the shell does not need one, and
+it would have to be torn out in Phase 3); copying the design card into the account panel; keeping
+horizontal arrow keys on a vertical list to avoid touching a shared primitive.

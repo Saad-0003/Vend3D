@@ -283,6 +283,12 @@
  * and Footer, which never carry this class, are visually untouched. Colours are
  * exposed as CSS variables and consumed via Tailwind arbitrary values
  * (`bg-[var(--surface-1)]`) rather than a global `@theme`, so nothing leaks.
+ *
+ * Radix portals (Dialog, Popover, Select, DropdownMenu) mount at `document.body`,
+ * which is *outside* any `.lux` ancestor — a portalled surface that consumes
+ * these tokens without carrying `lux` itself renders transparent with unset
+ * text colours. Portalled contents must therefore add `lux` to their className,
+ * which is what `search-dialog.tsx` already does.
  */
 .home-lux,
 .lux {

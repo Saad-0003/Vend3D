@@ -170,30 +170,37 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 **Goal:** Supabase Auth wired end-to-end.
 
+> **Status:** the *UI* half of this phase is built and green (login/signup pages, shared dialog,
+> navbar island, guarded `/account`, `?next=` contract) behind a swappable `AuthService` interface
+> implemented as a browser-local mock — see D-051. `/account` is the five-panel shell (Profile ·
+> Orders · Saved designs · Addresses · Settings) described in D-054: its panels are UX only, with
+> the backend deferred. The *server* half (`middleware.ts`, `Profile` rows, admin gate) needs
+> Phase 2's schema and is deliberately not started.
+
 **Tasks**
 
-- [ ] `/login`, `/signup` with email+password (react-hook-form + zod) and "Continue with Google" OAuth button
-- [ ] `middleware.ts`: refresh session; protect `/cart`, `/checkout`, `/orders`, `/designs`, `/admin` (redirect to `/login?next=...` and return after login)
-- [ ] On first login, create `Profile` row (server action, service key, idempotent upsert)
-- [ ] Navbar reflects auth state (avatar + dropdown: My Designs, My Orders, Sign out)
-- [ ] Admin gate: `/admin/*` returns 403 UI unless `profile.role === 'admin'` (check server-side on every admin request — never trust a client flag)
-- [ ] Sign out; session expiry handled gracefully (middleware refresh, server actions re-check auth and return 401 → client redirects to login)
+- [x] `/login`, `/signup` with email+password (react-hook-form + zod) — *done (D-051); "Continue with Google" is not built: with no Supabase behind it the button could only be a dead stub*
+- [ ] `middleware.ts`: refresh session; protect `/cart`, `/checkout`, `/orders`, `/designs`, `/admin` (redirect to `/login?next=...` and return after login) — *not built; `/account` is guarded client-side by `RequireAuth` (redirect + return after) until it exists (D-051)*
+- [ ] On first login, create `Profile` row (server action, service key, idempotent upsert) — *not built: no `prisma/` yet*
+- [x] Navbar reflects auth state (avatar + dropdown: My Designs, My Orders, Sign out) — *done: Account / Designs / Orders / Sign out in the popover (D-051)*
+- [ ] Admin gate: `/admin/*` returns 403 UI unless `profile.role === 'admin'` (check server-side on every admin request — never trust a client flag) — *not built*
+- [ ] Sign out; session expiry handled gracefully (middleware refresh, server actions re-check auth and return 401 → client redirects to login) — *the UI part is wired (Sign out in the account menu); refresh and 401 handling need middleware*
 
 **Edge cases**
 
-- [ ] OAuth user without displayName → derive from email prefix
-- [ ] Signup with existing email → friendly inline error, no account enumeration ("If this email exists…" style where applicable)
-- [ ] Email confirmation required vs autoconfirm: pick one, document in README; handle "check your inbox" state
-- [ ] Session expires mid-checkout → cart preserved (it lives server-side from Phase 8), user returns after re-login
+- [x] OAuth user without displayName → derive from email prefix — *the mock derives a display name from the email local part when none is given (`displayNameFromEmail`), tested*
+- [x] Signup with existing email → friendly inline error, no account enumeration ("If this email exists…" style where applicable) — *done: sign-up says "already exists"; sign-in returns one identical message for unknown email and wrong password, so it is not an enumeration oracle (D-051)*
+- [ ] Email confirmation required vs autoconfirm: pick one, document in README; handle "check your inbox" state — *deferred to the Supabase wiring — there is no server to confirm against yet*
+- [ ] Session expires mid-checkout → cart preserved (it lives server-side from Phase 8), user returns after re-login — *not built: needs middleware + a server cart*
 
 **Tests**
 
-- [ ] Unit: auth helper returns user/null correctly
-- [ ] Playwright: signup → logout → login flow; protected route redirects to login and back
+- [x] Unit: auth helper returns user/null correctly — *`tests/unit/auth-lib.test.ts` (29) and `tests/unit/auth-service.test.ts` (10)*
+- [x] Playwright: signup → logout → login flow; protected route redirects to login and back — *`tests/e2e/auth.spec.ts`, 10 tests × chromium + webkit*
 
 **Acceptance criteria**
 
-- [ ] Full auth round-trip works; non-admin cannot reach `/admin` (server-verified)
+- [ ] Full auth round-trip works; non-admin cannot reach `/admin` (server-verified) — *the round-trip works behind the mock (D-051); the server-verified admin gate still needs Phase 2*
 
 ---
 
@@ -373,29 +380,29 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 **Tasks**
 
-- [ ] `/checkout`: order summary + **demo card form** (cardholder name, card number, expiry MM/YY, CVC) accepting **Visa or Mastercard** only; visible banner: "Demo checkout — no real payment is taken. Do not enter real card details."
-- [ ] Pure helpers in `src/lib/payment/card.ts`: Luhn check, brand detect (Visa: starts with 4; Mastercard: 51–55 or 2221–2720), expiry-not-in-past, CVC 3 digits; live brand icon + input formatting (spaces) in the form
-- [ ] **Card data stays in the browser.** Card number, expiry and CVC are validated client-side only and are NEVER sent to the server, stored, or logged. Server action `placeOrder` receives only `{ checkoutKey, cardBrand, cardLast4 }`
+- [x] `/checkout`: order summary + **demo card form** (cardholder name, card number, expiry MM/YY, CVC) accepting **Visa or Mastercard** only; visible banner: "Demo checkout — no real payment is taken. Do not enter real card details." — *done as a 3-step flow (details → payment → review) with a persistent "Demo payment, no real charge" banner; client store instead of a server action (D-048)*
+- [x] Pure helpers in `src/lib/payment/card.ts`: Luhn check, brand detect (Visa: starts with 4; Mastercard: 51–55 or 2221–2720), expiry-not-in-past, CVC 3 digits; live brand icon + input formatting (spaces) in the form
+- [x] **Card data stays in the browser.** Card number, expiry and CVC are validated client-side only and are NEVER sent to the server, stored, or logged. Server action `placeOrder` receives only `{ checkoutKey, cardBrand, cardLast4 }` — *the store keeps only brand + last4; the payment step's form is unmounted and reset when the step is left (D-048)*
 - [ ] `placeOrder` server action (auth + rate limit + zod): loads cart from DB, **recomputes prices from DB** (never trust client totals), then in one transaction creates Order (`status=PAID`, `paymentMethod=DEMO_CARD`, brand + last4) + OrderItems (with `designConfigSnapshot`) and clears the cart
-- [ ] **Idempotency:** `checkoutKey` = client-generated UUID per checkout attempt, unique on Order; a repeat call returns the existing order. Submit button disables + shows "Processing…" (simulated ~1.5s delay for demo feel)
-- [ ] `/checkout/success?order=<id>`: confirmation message ("Order placed — demo payment, no money was charged") with order summary; page only **reads** the order (ownership-checked). `/checkout/cancelled` = simple "no charge made, cart kept" page
+- [x] **Idempotency:** `checkoutKey` = client-generated UUID per checkout attempt, unique on Order; a repeat call returns the existing order. Submit button disables + shows "Processing…" (simulated ~1.5s delay for demo feel) — *idempotency lives in the orders store until the server action lands (D-048)*
+- [ ] `/checkout/success?order=<id>`: confirmation message ("Order placed — demo payment, no money was charged") with order summary; page only **reads** the order (ownership-checked). `/checkout/cancelled` = simple "no charge made, cart kept" page — *built as the prompt's read-only `/order/[id]` instead (D-048)*
 - [ ] `/orders`: order history (id, date, items w/ thumbnails, total, status badge); `/orders/[id]` detail
 - [ ] Order confirmation "email" = documented stub (log + TODO) — out of scope to send real email
 
 **Edge cases**
 
-- [ ] Double-click / network retry / two tabs → one order only (unique `checkoutKey`)
-- [ ] Invalid card (bad Luhn, expired, non-Visa/Mastercard, short CVC) → inline field errors, nothing sent to server
+- [x] Double-click / network retry / two tabs → one order only (unique `checkoutKey`) — *store-level idempotency, tested; the DB unique constraint arrives with the migration*
+- [x] Invalid card (bad Luhn, expired, non-Visa/Mastercard, short CVC) → inline field errors, nothing sent to server
 - [ ] Product soft-deleted between cart and payment → order still created from **snapshotted** config/price for available items; unavailable items excluded and the user is told (order history integrity)
-- [ ] Empty cart at checkout → redirect to `/cart`
+- [x] Empty cart at checkout → redirect to `/cart`
 - [ ] Local currency: MVP single currency (USD), documented
 
 **Tests**
 
-- [ ] Unit: Luhn, brand detection, expiry and CVC validation (valid + invalid fixtures)
-- [ ] Integration: `placeOrder` called twice with same `checkoutKey` → order created exactly once
-- [ ] Integration: checkout rejects tampered client-side total; server payload schema rejects any extra card fields (number/CVC/expiry)
-- [ ] Playwright: full flow login → customize → cart → demo card 4242 4242 4242 4242 → success page shows order
+- [x] Unit: Luhn, brand detection, expiry and CVC validation (valid + invalid fixtures) — *`tests/unit/payment-card.test.ts`*
+- [ ] Integration: `placeOrder` called twice with same `checkoutKey` → order created exactly once — *store-level version tested; server action needs Phase 2*
+- [ ] Integration: checkout rejects tampered client-side total; server payload schema rejects any extra card fields (number/CVC/expiry) — *totals are recomputed from the cart in `lib/checkout/order.ts`; no server payload exists yet*
+- [x] Playwright: full flow login → customize → cart → demo card 4242 4242 4242 4242 → success page shows order — *cart → checkout → `/order/[id]`; the login step is not built (Phase 3)*
 
 **Acceptance criteria**
 

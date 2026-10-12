@@ -1,59 +1,59 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { PagePlaceholder } from "@/components/shared/page-placeholder";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 
-export const metadata: Metadata = { title: "Sign up" };
+import { AuthStage } from "@/components/auth/auth-stage";
+import { AuthForm } from "@/components/auth/auth-form";
+import { PageShell } from "@/components/ui/page-shell";
 
-export default function SignupPage() {
+export const metadata: Metadata = {
+  title: "Create account",
+  description: "Create a Vend3D account to keep your designs and orders.",
+};
+
+type SearchParams = Promise<{ next?: string }>;
+
+/**
+ * `/signup` — the same split layout as `/login`, with the sign-up field set
+ * (name + confirm password). Shares the form, the stage and the `?next=`
+ * contract so the two pages cannot drift.
+ */
+export default async function SignUpPage({ searchParams }: { searchParams: SearchParams }) {
+  const { next } = await searchParams;
+  // Sanitised here as well as in the form's success handler: the page can be
+  // linked directly with an attacker-supplied `next`.
+  const target = next && next.startsWith("/") && !next.startsWith("//") && !next.includes("\\") ? next : "/account";
+
   return (
-    <PagePlaceholder
-      eyebrow="Account"
-      title="Create your account"
-      description="One account for designs, cart and order history. Email confirmation behaviour is documented in the README from Phase 3."
-    >
-      <form className="flex w-full max-w-sm flex-col gap-4" action="#">
-        <label className="flex flex-col gap-2" htmlFor="signup-name">
-          <span className="type-label-md text-muted-foreground">Display name</span>
-          <Input
-            id="signup-name"
-            name="displayName"
-            type="text"
-            autoComplete="name"
-            placeholder="Alex"
-          />
-        </label>
-        <label className="flex flex-col gap-2" htmlFor="signup-email">
-          <span className="type-label-md text-muted-foreground">Email</span>
-          <Input
-            id="signup-email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            placeholder="you@example.com"
-          />
-        </label>
-        <label className="flex flex-col gap-2" htmlFor="signup-password">
-          <span className="type-label-md text-muted-foreground">Password</span>
-          <Input
-            id="signup-password"
-            name="password"
-            type="password"
-            autoComplete="new-password"
-            placeholder="At least 8 characters"
-          />
-        </label>
-        <Button type="submit" disabled className="h-11 rounded-full px-8">
-          Create account
-        </Button>
-        <p className="type-body-md text-muted-foreground">
-          Already registered?{" "}
-          <Link href="/login" className="text-foreground hover:underline">
-            Sign in
-          </Link>
-        </p>
-      </form>
-    </PagePlaceholder>
+    <PageShell aria-label="Create account" className="lux">
+      <div className="mx-auto grid w-full max-w-[1120px] items-stretch gap-10 lg:grid-cols-2">
+        <AuthStage />
+
+        <div className="flex flex-col justify-center">
+          <div className="mx-auto flex w-full max-w-[400px] flex-col gap-7 rounded-[var(--card-radius)] border border-[var(--hairline)] bg-[var(--surface-1)] p-6 [box-shadow:var(--inner-highlight)] sm:p-8">
+            <header className="flex flex-col gap-2">
+              <span className="lux-eyebrow text-[var(--lime)]">Account</span>
+              <h1 className="lux-h2 lux-display text-[28px] text-[var(--ivory)]">Create account</h1>
+              <p className="text-[14px] leading-[1.6] text-[var(--muted)]">
+                This demo keeps your session in this browser — no server account yet.
+              </p>
+            </header>
+
+            <AuthForm mode="signup" next={target} />
+
+            <p className="text-center text-[13px] text-[var(--muted)]">
+              Already have an account?{" "}
+              {/* A plain anchor for the same reason as `/login`'s: a soft
+                  navigation can land the shopper on a page whose form is not yet
+                  interactive, and a click in that window does nothing. */}
+              <a
+                href={`/login?next=${encodeURIComponent(target)}`}
+                className="text-[var(--ivory)] underline underline-offset-2 hover:text-[var(--lime)]"
+              >
+                Sign in
+              </a>
+            </p>
+          </div>
+        </div>
+      </div>
+    </PageShell>
   );
 }

@@ -21,6 +21,11 @@ const routes = [
 ];
 
 test.describe("route skeleton", () => {
+  // A dev server compiles each route on its first hit, and `/products/[id]` and
+  // `/customize/[id]` are the heaviest ones. The auth and checkout specs already
+  // widen their budgets for exactly this reason (D-052).
+  test.slow();
+
   for (const route of routes) {
     test(`${route} returns 200`, async ({ request }) => {
       const response = await request.get(route);

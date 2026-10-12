@@ -1,27 +1,17 @@
 import type { Metadata } from "next";
-import { PagePlaceholder } from "@/components/shared/page-placeholder";
-import { Badge } from "@/components/ui/badge";
 
-export const metadata: Metadata = { title: "Checkout" };
+import { CheckoutScreen } from "@/components/checkout/checkout-screen";
 
+export const metadata: Metadata = {
+  title: "Checkout",
+  description: "Demo checkout — no real payment is taken and no card data leaves your browser.",
+};
+
+/**
+ * `/checkout` (plan.md Phase 9). The screen is a client island because the
+ * cart, the demo card form and the order record are all client state until the
+ * Phase 9 server action lands.
+ */
 export default function CheckoutPage() {
-  return (
-    <PagePlaceholder
-      eyebrow="Checkout"
-      title="Demo checkout"
-      description="A Visa or Mastercard form that never sends card data to the server. No real gateway is integrated — Phase 9."
-    >
-      <div className="flex flex-wrap gap-2">
-        <Badge variant="outline" className="text-muted-foreground">
-          demo checkout — no real payment is taken
-        </Badge>
-        <Badge variant="outline" className="text-muted-foreground">
-          card data stays in the browser
-        </Badge>
-        <Badge variant="outline" className="text-muted-foreground">
-          idempotent checkoutKey
-        </Badge>
-      </div>
-    </PagePlaceholder>
-  );
+  return <CheckoutScreen />;
 }

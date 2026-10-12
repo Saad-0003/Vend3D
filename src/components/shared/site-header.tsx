@@ -1,14 +1,14 @@
-import Link from "next/link";
 import { Logo } from "@/components/shared/logo";
 import { CartButton } from "@/components/shared/cart-button";
 import { MobileNav } from "@/components/shared/mobile-nav";
 import { NavLinks } from "@/components/shared/nav-links";
-import { Button } from "@/components/ui/button";
-import { User } from "lucide-react";
+import { NavAuthButton } from "@/components/shared/nav-auth-button";
 
 /**
- * Sticky storefront header. Auth state is a Phase 3 concern: until then the
- * avatar is a static entry point to `/login` and the cart badge shows zero.
+ * Sticky storefront header. Auth state is Phase 3: the avatar opens a sign-in
+ * dialog when signed out and the account menu when signed in, with the cart
+ * badge alongside. `NavAuthButton` is the one client island here, so the sticky
+ * shell itself still renders server-side.
  */
 export function SiteHeader() {
   return (
@@ -22,17 +22,7 @@ export function SiteHeader() {
 
         <div className="flex items-center gap-1">
           <CartButton />
-          <Button
-            asChild
-            variant="ghost"
-            size="icon"
-            aria-label="Account"
-            className="bg-primary text-primary-foreground hover:bg-primary/85 size-8 rounded-full"
-          >
-            <Link href="/login">
-              <User className="size-4" strokeWidth={1.5} />
-            </Link>
-          </Button>
+          <NavAuthButton />
           <div className="md:hidden">
             <MobileNav />
           </div>

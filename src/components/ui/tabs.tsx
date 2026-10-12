@@ -14,6 +14,12 @@ function Tabs({
     <TabsPrimitive.Root
       data-slot="tabs"
       data-orientation={orientation}
+      // `orientation` must reach the primitive as well as the attribute: Radix
+      // keeps it in context for the tablist's `aria-orientation` and for the
+      // roving-focus direction. Rendering only `data-orientation` leaves arrow
+      // keys moving left/right inside a vertically stacked list (and announces
+      // the wrong orientation to assistive tech).
+      orientation={orientation}
       className={cn("group/tabs flex gap-2 data-horizontal:flex-col", className)}
       {...props}
     />

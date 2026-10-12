@@ -116,7 +116,7 @@ function SaveDesignButton({ onSave }: { onSave: (name: string) => void }) {
           Save design
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="flex w-72 flex-col gap-3 rounded-[var(--inner-radius)] bg-[var(--surface-2)] p-4">
+      <PopoverContent align="end" className="lux flex w-72 flex-col gap-3 rounded-[var(--inner-radius)] bg-[var(--surface-2)] p-4">
         <label htmlFor="design-name" className="lux-mono text-[11px] tracking-[0.16em] text-[var(--muted)] uppercase">
           Design name
         </label>

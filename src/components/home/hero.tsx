@@ -58,9 +58,18 @@ export function Hero() {
               <span key={line} className="block overflow-hidden">
                 <motion.span
                   className={line === "Own it." ? "inline-block text-[var(--lime)]" : "inline-block"}
-                  initial={reduced ? { opacity: 0 } : { y: "110%" }}
-                  animate={reduced ? { opacity: 1 } : { y: "0%" }}
-                  transition={{ duration: 0.85, ease: EASE, delay: 0.1 + i * 0.09 }}
+                  // `initial` must not branch on the reduced-motion preference: the
+                  // server cannot resolve it, so a reduced-motion client hydrates with
+                  // a different style, React drops the subtree, and the hero's CTA
+                  // links stop responding to clicks. Reduced motion zeroes the
+                  // transition instead, which keeps the documented rise.
+                  initial={{ y: "110%", opacity: 0 }}
+                  animate={{ y: "0%", opacity: 1 }}
+                  transition={{
+                    duration: reduced ? 0 : 0.85,
+                    ease: EASE,
+                    delay: reduced ? 0 : 0.1 + i * 0.09,
+                  }}
                 >
                   {line}
                 </motion.span>

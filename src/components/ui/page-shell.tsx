@@ -34,7 +34,12 @@ export function PageShell({
       aria-label={ariaLabel}
       aria-labelledby={ariaLabelledBy}
       className={cn("mx-auto w-full max-w-[1280px] px-6 md:px-12 py-20 md:py-32", className)}
-      initial={reduced ? { opacity: 0 } : { opacity: 0, y: 8 }}
+      // `initial` must NOT branch on the reduced-motion preference. `useReducedMotion`
+      // reads matchMedia synchronously, so a reduced-motion client hydrates with a
+      // different style than the server rendered, React drops this subtree, and every
+      // link inside the shell silently stops responding to clicks. The preference
+      // belongs in the transition duration, where server and client agree.
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: reduced ? 0.4 : 0.7, ease: EASE }}
     >

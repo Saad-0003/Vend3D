@@ -37,6 +37,8 @@ type CartActions = {
   setDrawerOpen: (open: boolean) => void;
   removeLine: (id: string) => void;
   setQty: (id: string, qty: number) => void;
+  /** Empties the cart after a successful order (Phase 9 checkout). */
+  clear: () => void;
   hydrate: () => void;
 };
 
@@ -75,6 +77,10 @@ export const useCartStore = create<CartState & CartActions>()(
       setQty(id, qty) {
         const clamped = Math.min(CART_QTY_MAX, Math.max(1, Math.round(qty)));
         set((s) => ({ lines: s.lines.map((l) => (l.id === id ? { ...l, qty: clamped } : l)) }));
+      },
+
+      clear() {
+        set({ lines: [] });
       },
 
       hydrate() {
