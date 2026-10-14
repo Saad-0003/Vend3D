@@ -7,19 +7,19 @@ const columns = [
   {
     heading: "Platform",
     links: [
-      { href: "/products", label: "Catalog" },
-      { href: "/customize/demo", label: "3D Studio" },
-      { href: "/products", label: "How It Works" },
-      { href: "/products", label: "Materials Library" },
+      { href: "/shop", label: "Catalog" },
+      { href: "/studio", label: "3D Studio" },
+      { href: "/how-it-works", label: "How It Works" },
+      { href: "/materials", label: "Materials Library" },
     ],
   },
   {
     heading: "Support",
     links: [
-      { href: "/products", label: "CAD Specs" },
-      { href: "/products", label: "Production Times" },
-      { href: "/products", label: "Warranty" },
-      { href: "/products", label: "Direct Line" },
+      { href: "/cad-specs", label: "CAD Specs" },
+      { href: "/production-times", label: "Production Times" },
+      { href: "/warranty", label: "Warranty" },
+      { href: "/contact", label: "Direct Line" },
     ],
   },
 ];

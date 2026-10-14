@@ -112,6 +112,19 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 - [x] Landing page: hero (static headline + CTA), featured-products placeholder grid, "how it works" 3-step strip — final copy can be lorem-free but simple
 - [x] Git repo init, README with setup steps, `DECISIONS.md` created
 
+> **Status:** the footer's route placeholders now resolve to the informational pages
+> (`/how-it-works`, `/materials`, `/cad-specs`, `/production-times`, `/warranty`, `/contact`),
+> built on one shared template — see D-055. Their copy is generated from the product
+> configuration, and any fact the site does not publish ships as a
+> "TODO: confirm with owner" note rather than invented text. The legal pages
+> (`/privacy`, `/terms`, `/shipping-returns`) follow the same template as drafts — every
+> unconfirmed term is a marked placeholder and each page carries a "have a lawyer review"
+> banner (D-056). They are intentionally linked only from the info pages, the checkout terms
+> checkbox and the sign-up line, never from the footer or navbar. The Phase 1 system states are
+> built to spec (D-058): the 404 stage with its search, the error boundary, route-level
+> `loading.tsx` per major route on one shared skeleton vocabulary, and an offline notice reusing
+> `ErrorState`.
+
 **Edge cases**
 
 - [x] App must build with zero TS errors and zero ESLint errors from day one (`npm run build` in CI mode).

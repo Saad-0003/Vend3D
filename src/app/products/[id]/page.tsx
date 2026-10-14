@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { StudioScreen } from "@/components/studio/studio-screen";
-import { SectionSkeletons } from "@/components/ui/section-skeletons";
+import { StudioProductPageSkeleton } from "@/components/ui/route-skeletons";
 import { products } from "@/lib/catalog";
 import { getProductConfig } from "@/lib/products/config";
 
@@ -23,7 +23,9 @@ export default async function ProductDetailPage({ params }: { params: Params }) 
 
   return (
     <div className="mx-auto w-full max-w-[1280px] px-4 sm:px-6 lg:px-12">
-      <Suspense fallback={<SectionSkeletons variant="product-grid" count={4} />}>
+      {/* The fallback has to be the studio's own shape (stage + sidebar): a
+          product grid here would jump the layout when the route resolves. */}
+      <Suspense fallback={<StudioProductPageSkeleton />}>
         <StudioScreen slug={id} catalog={products} />
       </Suspense>
     </div>

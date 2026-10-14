@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { seedCart } from "./seed-cart";
+
 /**
  * Demo checkout end to end (plan.md Phase 9): cart → three steps with a valid
  * demo card → place the order → confirmation screen. No real card data is
@@ -15,41 +17,12 @@ import { expect, test } from "@playwright/test";
  * click's stability check, and the step transitions become opacity-only. The
  * animated path is covered by the jsdom suite (see `tests/unit`), where motion
  * is not reduced. `test.slow()` triples the budget for the dev-server compile.
+ *
+ * The cart is seeded by `seed-cart.ts` rather than by walking the studio, whose
+ * customizer chunk is the heaviest route in the app.
  */
 
 const SLOW = { timeout: 15_000 };
-
-/**
- * Seeds a cart through init script instead of walking the studio. The studio's
- * customizer chunk is the heaviest route in the app, and compiling it in every
- * parallel worker starves the rest of the suite.
- *
- * It also keeps the cart drawer out of the flow. The drawer's Checkout link is
- * one of the links that used to lose hydration from the `PageShell` mismatch
- * (DECISIONS.md D-050) — now fixed, but the `/cart` page's own Checkout button
- * walks the same shopper-visible path without a dialog in the way, and running
- * the suite at the default worker count still overloads the dev server on a
- * loaded machine.
- */
-async function seedCart(page: import("@playwright/test").Page) {
-  await page.addInitScript(() => {
-    const line = {
-      id: "line-e2e",
-      slug: "heavyweight-boxy-tee",
-      name: "Heavyweight Boxy Tee",
-      configuration: {
-        parts: { body: { color: "#1b1b1d", finish: 0 } },
-        decal: null,
-        engrave: { enabled: false, text: "", font: "mono" },
-        extras: { size: "M" },
-      },
-      thumbnail: "",
-      qty: 2,
-      unitCents: 4800,
-    };
-    localStorage.setItem("vend3d-cart", JSON.stringify({ state: { lines: [line] }, version: 0 }));
-  });
-}
 
 test.use({ reducedMotion: "reduce" });
 

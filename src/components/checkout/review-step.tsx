@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/form";
 import { formatCents } from "@/lib/format";
 import { getShippingMethod } from "@/lib/checkout/shipping";
+import { InfoLink } from "@/components/info/info-blocks";
 import { cardBrandLabel, type CardBrand } from "@/lib/payment/card";
 
 /**
@@ -151,10 +152,21 @@ export function ReviewStep({
                   </FormControl>
                   <div className="flex flex-col gap-1">
                     <FormLabel htmlFor="review-terms" className="text-[13px] leading-[1.5] text-[var(--ivory)]">
-                      I understand this is a demo order and that no real payment is taken.
+                      I agree to the{" "}
+                      <InfoLink href="/terms" newTab>
+                        Terms of Service
+                      </InfoLink>{" "}
+                      and{" "}
+                      <InfoLink href="/shipping-returns" newTab>
+                        Shipping &amp; Returns
+                      </InfoLink>.
+                      {/* Links open in a new tab: the form is mid-checkout, and
+                          losing the entered details to read a policy is worse
+                          than a second tab. */}
                     </FormLabel>
                     <p id="review-terms-message" className="text-[12px] text-[var(--muted)]">
-                      Placing the order creates a demo order record and clears the cart.{" "}
+                      Placing the order creates a demo order record and clears the cart. No real
+                      payment is taken.{" "}
                       <Link href="/shop" className="underline hover:text-[var(--ivory)]">
                         Keep shopping
                       </Link>{" "}

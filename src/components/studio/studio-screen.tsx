@@ -15,8 +15,7 @@ import { StudioSidebar } from "@/components/studio/studio-sidebar";
 import { StudioStage } from "@/components/studio/studio-stage";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ProductCard } from "@/components/ui/product-card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { SectionSkeletons } from "@/components/ui/section-skeletons";
+import { StageWithSidebarSkeleton } from "@/components/ui/route-skeletons";
 import { Button } from "@/components/ui/button";
 import type { Product } from "@/lib/catalog";
 import { formatCents } from "@/lib/format";
@@ -151,7 +150,13 @@ function StudioProduct({ product, catalog }: { product: ProductConfig; catalog: 
     });
   }
 
-  if (!hydrated) return <StudioSkeleton />;
+  if (!hydrated) {
+    return (
+      <div role="status" aria-label="Loading studio">
+        <StageWithSidebarSkeleton className="py-6" />
+      </div>
+    );
+  }
 
   const suggestions = catalog.filter((p) => p.id !== product.slug).slice(0, 4);
 
@@ -248,23 +253,6 @@ function StudioProduct({ product, catalog }: { product: ProductConfig; catalog: 
           </ul>
         </section>
       ) : null}
-    </div>
-  );
-}
-
-function StudioSkeleton() {
-  return (
-    <div className="flex flex-col gap-12 py-6 lg:gap-16" role="status" aria-label="Loading studio">
-      <Skeleton className="h-4 w-64 rounded-full" />
-      <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-8">
-        <Skeleton className="aspect-[4/5] w-full rounded-[var(--card-radius)] lg:h-[calc(100svh-150px)] lg:flex-1" />
-        <div className="flex w-full flex-col gap-4 lg:w-[440px] lg:shrink-0 xl:w-[460px]">
-          <Skeleton className="h-10 w-2/3 rounded-full" />
-          <Skeleton className="h-64 w-full rounded-[var(--card-radius)]" />
-          <Skeleton className="h-64 w-full rounded-[var(--card-radius)]" />
-        </div>
-      </div>
-      <SectionSkeletons variant="product-grid" count={4} />
     </div>
   );
 }

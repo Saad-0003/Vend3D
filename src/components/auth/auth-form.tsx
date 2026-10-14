@@ -8,6 +8,7 @@ import { Eye, EyeOff, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { InfoLink } from "@/components/info/info-blocks";
 import { signInSchema, signUpSchema, type SignInValues, type SignUpValues } from "@/lib/auth/schemas";
 import { sanitizeNext } from "@/lib/auth/next";
 import { useAuthStore } from "@/stores/auth-store";
@@ -191,6 +192,14 @@ export function AuthForm({
             />
           }
         />
+      ) : null}
+
+      {isSignUp ? (
+        <p className="text-[12px] leading-[1.6] text-[var(--muted)]">
+          By creating an account you agree to the{" "}
+          <InfoLink href="/terms">Terms of Service</InfoLink> and{" "}
+          <InfoLink href="/privacy">Privacy Policy</InfoLink>.
+        </p>
       ) : null}
 
       <Button

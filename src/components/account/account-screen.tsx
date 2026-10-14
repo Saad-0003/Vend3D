@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 import { PageHeader } from "@/components/ui/page-header";
 import { PageShell } from "@/components/ui/page-shell";
-import { Skeleton } from "@/components/ui/skeleton";
+import { AccountBodySkeleton } from "@/components/ui/route-skeletons";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { firstNameOf } from "@/lib/account/profile";
 import { useAuthStore } from "@/stores/auth-store";
@@ -84,7 +84,9 @@ export function AccountScreen() {
       />
 
       {!ready ? (
-        <AccountSkeleton />
+        <div role="status" aria-label="Loading account">
+          <AccountBodySkeleton />
+        </div>
       ) : (
         <Tabs
           defaultValue="profile"
@@ -132,19 +134,5 @@ export function AccountScreen() {
         </Tabs>
       )}
     </PageShell>
-  );
-}
-
-/** Chip row + panel placeholder while the two client stores rehydrate. */
-function AccountSkeleton() {
-  return (
-    <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-10" role="status" aria-label="Loading account">
-      <div className="flex gap-1 overflow-hidden lg:w-56 lg:shrink-0 lg:flex-col">
-        {TABS.map((tab) => (
-          <Skeleton key={tab} className="h-9 w-28 shrink-0 rounded-full lg:w-full" />
-        ))}
-      </div>
-      <Skeleton className="min-h-[26rem] flex-1 rounded-[var(--card-radius)]" />
-    </div>
   );
 }

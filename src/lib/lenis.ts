@@ -15,6 +15,15 @@ export function setLenisInstance(next: Lenis | null) {
   instance = next;
 }
 
+export function scrollToTop() {
+  if (instance) {
+    instance.scrollTo(0, { immediate: true });
+    return;
+  }
+
+  window.scrollTo(0, 0);
+}
+
 /**
  * Smooth-scrolls an in-page target into view, clearing the sticky navbar.
  * Falls back to a native scroll when Lenis is inactive (reduced motion, or

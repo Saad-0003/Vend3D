@@ -28,6 +28,17 @@ describe("landing page", () => {
     // Benefits metric labels (rendered uppercase via CSS, title-case in the DOM).
     expect(screen.getByText("Carbon neutral dispatch")).toBeInTheDocument();
     expect(screen.getByText("Creators launch drops without waiting.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "See all reviews" })).toHaveAttribute(
+      "href",
+      "/reviews",
+    );
+    expect(screen.getByRole("link", { name: "Launch Your Canvas" })).toHaveAttribute(
+      "href",
+      "/studio",
+    );
+    const readAllLinks = screen.getAllByRole("link", { name: "Read all" });
+    expect(readAllLinks).toHaveLength(3);
+    readAllLinks.forEach((link) => expect(link).toHaveAttribute("href", "/products"));
     // Shop sits directly under the hero and is the smooth-scroll target.
     expect(document.getElementById("shop")).toBeInTheDocument();
   });
@@ -75,13 +86,11 @@ describe("landing page", () => {
       "href",
       "/studio",
     );
-    expect(screen.getByRole("button", { name: /^Shop$/ })).toHaveAttribute(
-      "type",
-      "button",
+    expect(screen.getByRole("button", { name: /^Shop$/ })).toHaveAttribute("type", "button");
+    expect(screen.getByRole("link", { name: "Heavyweight Boxy Tee — Onyx" })).toHaveAttribute(
+      "href",
+      expect.stringContaining("?color=onyx") as unknown as string,
     );
-    expect(
-      screen.getByRole("link", { name: "Heavyweight Boxy Tee — Onyx" }),
-    ).toHaveAttribute("href", expect.stringContaining("?color=onyx") as unknown as string);
   });
 
   it("renders the three how-it-works steps", () => {

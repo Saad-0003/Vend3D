@@ -56,7 +56,7 @@ export function LaunchBanner() {
                   variant="secondary"
                   className="border-foreground/10 bg-foreground/[0.06] hover:bg-foreground/10 h-11 rounded-full px-6"
                 >
-                  <Link href="/products">
+                  <Link href="/reviews">
                     See all reviews
                     <ArrowUpRight className="size-4" strokeWidth={1.5} />
                   </Link>
@@ -65,7 +65,7 @@ export function LaunchBanner() {
                   asChild
                   className="bg-signal text-on-signal hover:bg-signal/90 h-11 rounded-full px-6"
                 >
-                  <Link href="/products">Launch Your Canvas</Link>
+                  <Link href="/studio">Launch Your Canvas</Link>
                 </Button>
               </div>
             </div>

@@ -879,3 +879,85 @@ reaches the primitive as well as the attribute, which is what the shadcn wrapper
 **Alternatives rejected:** a persisted account store for the mock (the shell does not need one, and
 it would have to be torn out in Phase 3); copying the design card into the account panel; keeping
 horizontal arrow keys on a vertical list to avoid touching a shared primitive.
+### D-055 · One informational template, and the tables are a plain grid
+
+**What:** `/how-it-works`, `/materials`, `/cad-specs`, `/production-times`, `/warranty` and
+`/contact` are six pages assembled from one template (`components/info/info-page.tsx` + a block
+renderer), with a `/reviews` placeholder behind the testimonials link so nothing 404s while the
+reviews grid waits for its own pass. Footer hrefs, the testimonials "See all reviews" target and the
+newsletter "Join" were wired; all three diffs are href/handler lines only.
+
+**Why:** the template keeps six pages on one layout (DESIGN.md rule 3) and makes the seventh a data
+file. Its copy is generated from `productConfigs` rather than retyped, so `/materials` and
+`/cad-specs` cannot drift from what the studio actually offers. Anything the site does not state —
+warranty length, certifications, carriers, contact addresses — ships as a styled
+"TODO: confirm with owner" note instead of invented copy.
+
+**Alternatives rejected:** a shadcn `Table` with class overrides (it carries fills and row hover that
+this spec forbids, so fighting it would be worse than the 40-line block); six bespoke page layouts;
+filling the gaps with plausible marketing copy. The doc tables use `border-collapse` with a 1px
+border on every cell, which is what makes a Word-like grid without doubled lines.
+
+### D-056 · Legal pages are templates, and every gap is marked
+
+**What:** `/privacy`, `/terms` and `/shipping-returns` on the same `InfoPage` template. `InfoPage`
+gained two optional props — `notice` (rendered under the header) and `closingNote` (rendered after
+the sections) — so a page can end in a line of links instead of the CTA band; the six
+informational pages are untouched because `closing` stays optional. The draft banner and the
+`Last updated: [date]` line live in `info-blocks.tsx` as `LegalDraftNotice`/`LegalUpdatedLine` so
+the three pages cannot drift. `InfoLink` gained a `newTab` flag for links that sit inside a label.
+
+Two link surfaces now exist as specified: the checkout review step's checkbox label reads
+"I agree to the Terms of Service and Shipping & Returns" with both phrases opening in a new tab,
+and the sign-up form carries "By creating an account you agree to the Terms of Service and Privacy
+Policy" (sign-up only — sign-in has nothing to agree to). The cart-seeding helper moved to
+`tests/e2e/seed-cart.ts` so the checkout and legal specs share one seed shape instead of two.
+
+**Why:** the prompt is explicit that these are templates, so nothing invents a jurisdiction, a
+refund window, a duration or a registration detail. Every one of those is a marked
+"TODO: owner to confirm" note, `[Company legal name]` and `[Effective date]` stay as visible
+placeholders, and each page opens with the reviewer's banner. A plausible-looking but invented
+liability clause is worse than an obvious hole, because it looks finished.
+
+**Alternatives rejected:** three bespoke page layouts (rule 3 — one template); a second inline-link
+style for the label links; softening the TODO notes into vague prose that reads as settled policy.
+
+### D-057 · Static demo reviews page
+
+**What:** `/reviews` is a full-length page using one centralized demo review data file. The
+three existing testimonial quotes remain verbatim; twelve supplied demo entries are appended.
+The route labels its score and count as illustrative and unverified. The testimonials band's
+"See all reviews" link opens the route in a new tab, "Launch Your Canvas" links to `/studio`, and
+the per-card "Read all" links remain unchanged.
+
+**Why:** the owner explicitly approved this one-off exception to `plan.md` Appendix A's
+out-of-scope reviews/ratings rule. The copy is demo data, not asserted customer evidence.
+
+**Alternatives rejected:** leaving `/reviews` as a placeholder; implying the sample copy is
+verified feedback; changing the existing testimonial cards or their "Read all" behavior.
+
+### D-058 · Route-level skeletons are one shared vocabulary, proven in jsdom
+
+**What:** `components/ui/route-skeletons.tsx` holds one skeleton per page (`ShopPageSkeleton`,
+`StudioHubPageSkeleton`, `DesignsPageSkeleton`, `AccountPageSkeleton`,
+`StudioProductPageSkeleton`), each in two layers: a body block the screen itself can render around
+its own header (`/studio` and `/account` do, while their client stores hydrate) and a page block the
+route's `loading.tsx` owns. `studio-screen.tsx` and `account-screen.tsx` now import the shared
+blocks instead of carrying private copies. `/products/[id]`'s Suspense fallback became the stage
+shape instead of a product grid, which was the wrong layout for that route. The 404 and error stages
+were rebuilt to the requested shapes, and `OfflineNotice` reuses `ErrorState`.
+
+**Why:** a skeleton that reserves different geometry from the page it stands in for is the thing
+that causes layout shift, so the shapes are asserted against the real screens' classes rather than
+eyeballed. They are built from raw `Skeleton` blocks rather than `SectionSkeletons` so each one
+carries exactly one `role="status"` — nesting a second one inside the first announces the pending
+load twice.
+
+**Alternatives rejected:** asserting the route-level `loading.tsx` from Playwright. It is not
+observable in this app: Next renders nothing new until the flight response starts streaming, so a
+held request just keeps showing the old page, and an aborted request is silently recovered from the
+prefetch cache (both verified against `/shop`). Forcing it with network tricks made the test flaky,
+which AGENTS.md forbids, so the contract is proven in `tests/unit/route-skeletons.test.tsx` where
+it is deterministic. Also rejected: adding a `role="alert"` beside `ErrorState`'s own (it double-
+announces), and a second shimmer animation on `Skeleton` — the house primitive is the documented
+`animate-pulse` (DESIGN.md §5), so "shimmer, no spinners" is satisfied by reusing it.

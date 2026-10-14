@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { CartDrawer } from "@/components/shared/cart-drawer";
+import { OfflineNotice } from "@/components/system/offline-notice";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SmoothScroll } from "@/components/smooth-scroll";
 import { SiteHeader } from "@/components/shared/site-header";
@@ -61,6 +62,7 @@ export default function RootLayout({
             <SiteFooter />
             <Toaster position="bottom-center" />
             <CartDrawer />
+            <OfflineNotice />
           </SmoothScroll>
         </ThemeProvider>
       </body>

@@ -18,6 +18,16 @@ const routes = [
   "/admin",
   "/login",
   "/signup",
+  "/how-it-works",
+  "/materials",
+  "/cad-specs",
+  "/production-times",
+  "/warranty",
+  "/contact",
+  "/reviews",
+  "/privacy",
+  "/terms",
+  "/shipping-returns",
 ];
 
 test.describe("route skeleton", () => {
@@ -36,7 +46,11 @@ test.describe("route skeleton", () => {
   test("unknown path returns 404 with the not-found screen", async ({ request }) => {
     const response = await request.get("/this-route-does-not-exist");
     expect(response.status()).toBe(404);
-    expect(await response.text()).toContain("This page does not exist.");
+    // Curly apostrophes are checked as apostrophe-free fragments.
+    const body = await response.text();
+    expect(body).toContain("404");
+    expect(body).toContain("This blank");
+    expect(body).toContain("exist yet");
   });
 
   test("the storefront renders the hero and the shell", async ({ page }) => {

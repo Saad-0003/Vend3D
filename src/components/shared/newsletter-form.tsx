@@ -18,9 +18,10 @@ export function NewsletterForm() {
       className="flex items-center gap-2"
       onSubmit={(event) => {
         event.preventDefault();
-        toast("The dispatch bulletin is not wired up yet — nothing was stored.", {
-          description: "Email sending is out of scope for the MVP.",
+        toast.success("You're on the list", {
+          description: "Demo only: nothing was stored and no email is sent.",
         });
+        setEmail("");
       }}
     >
       <Input
