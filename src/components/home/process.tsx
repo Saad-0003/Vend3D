@@ -1,199 +1,326 @@
 "use client";
 
-import { motion, useInView, useReducedMotion, useScroll, useSpring } from "framer-motion";
-import { useRef } from "react";
-import { CheckCircle2, MousePointerClick, SlidersHorizontal } from "lucide-react";
-import { Section } from "@/components/home/section";
-import { EASE, viewportOnce } from "@/components/home/motion";
+import {
+  motion,
+  useInView,
+  useMotionValue,
+  useMotionValueEvent,
+  useReducedMotion,
+  useScroll,
+  useSpring,
+  useTransform,
+} from "framer-motion";
+import dynamic from "next/dynamic";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
+
+import styles from "./process.module.css";
+
+export const SECTION_SCROLL_VH = 280;
+
+const LazyArtboard = dynamic(() => import("./process-artboard").then((module) => module.Artboard), {
+  ssr: false,
+  loading: () => <div className={styles.artboard} aria-hidden="true" />,
+});
 
 const steps = [
   {
     number: "01",
-    icon: MousePointerClick,
     title: "Pick",
     body: "Select from ethically milled heavy blanks, custom dyed caps, and precision ceramics.",
   },
   {
     number: "02",
-    icon: SlidersHorizontal,
     title: "Shape",
     body: "Adjust materials, calibrate pigments, and apply custom vector artwork in live photoreal 3D.",
   },
   {
     number: "03",
-    icon: CheckCircle2,
     title: "Own",
     body: "Precision laser-etched or screenprinted, quality-checked, and dispatched in 48 hours.",
   },
-];
+] as const;
 
-/* ---- tiny looping SVG illustrations (paused when off-screen via useInView) ---- */
+const springSettings = { stiffness: 120, damping: 20 };
 
-function PickIllo() {
-  const ref = useRef<HTMLSpanElement>(null);
-  const inView = useInView(ref, { margin: "-15% 0px" });
-  const reduced = useReducedMotion();
-  return (
-    <span ref={ref} className="flex h-10 items-center gap-2" aria-hidden>
-      {[0, 1, 2].map((i) => (
-        <span
-          key={i}
-          className="h-6 w-6 rounded-full border border-[var(--hairline-strong)]"
-          style={{ borderColor: i === 1 ? "var(--lime)" : undefined }}
-        />
-      ))}
-      <motion.svg
-        width="24"
-        height="16"
-        viewBox="0 0 24 16"
-        animate={reduced || !inView ? { x: 0, y: 0 } : { x: [0, 12, 24], y: [8, 8, 0] }}
-        transition={{ duration: 3, repeat: Infinity, repeatDelay: 0.4 }}
-        className="text-[var(--lime)]"
-      >
-        <path d="M2 2 L2 14 L7 11 L10 14 L10 8 L6 7 Z" fill="currentColor" />
-      </motion.svg>
-    </span>
-  );
-}
-
-function ShapeIllo() {
-  const ref = useRef<HTMLSpanElement>(null);
-  const inView = useInView(ref, { margin: "-15% 0px" });
-  const reduced = useReducedMotion();
-  const loop = reduced || !inView;
-  return (
-    <span ref={ref} className="flex h-10 flex-col justify-center gap-3" aria-hidden>
-      {[0, 1].map((i) => (
-        <span key={i} className="relative block h-px w-28 bg-[var(--hairline-strong)]">
-          <motion.span
-            className="absolute top-1/2 size-3 -translate-y-1/2 rounded-full bg-[var(--lime)]"
-            animate={loop ? { left: "10%" } : { left: ["10%", "90%", "10%"] }}
-            transition={{ duration: 3, repeat: Infinity, repeatDelay: 0.4, delay: i * 0.2 }}
-          />
-        </span>
-      ))}
-    </span>
-  );
-}
-
-function OwnIllo() {
-  const ref = useRef<HTMLSpanElement>(null);
-  const inView = useInView(ref, { margin: "-15% 0px" });
-  const reduced = useReducedMotion();
-  return (
-    <span ref={ref} className="flex h-10 items-center" aria-hidden>
-      <svg width="40" height="40" viewBox="0 0 40 40">
-        <circle
-          cx="20"
-          cy="20"
-          r="14"
-          fill="none"
-          stroke="var(--hairline-strong)"
-          strokeWidth="1.5"
-        />
-        <motion.circle
-          cx="20"
-          cy="20"
-          r="14"
-          fill="none"
-          stroke="var(--lime)"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeDasharray="88"
-          initial={{ strokeDashoffset: 88, rotate: -90 }}
-          animate={reduced || !inView ? { strokeDashoffset: 88 } : { strokeDashoffset: 0 }}
-          style={{ originX: "20px", originY: "20px" }}
-          transition={{ duration: 2.4, repeat: Infinity, repeatDelay: 0.6, ease: EASE }}
-        />
-      </svg>
-    </span>
-  );
-}
-
-const illustrations = [<PickIllo key="p" />, <ShapeIllo key="s" />, <OwnIllo key="o" />];
-
-/** Pick → Shape → Own with a self-drawing connector line and tiny loops. */
-export function Process() {
-  const trackRef = useRef<HTMLOListElement>(null);
+function useSceneProgress() {
+  const sectionRef = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({
-    target: trackRef,
-    offset: ["start 0.8", "end 0.6"],
+    target: sectionRef,
+    offset: ["start start", "end end"],
   });
-  const pathLength = useSpring(scrollYProgress, { stiffness: 60, damping: 20 });
+  const rawProgress = useMotionValue(0);
+  const springProgress = useSpring(rawProgress, springSettings);
+  const reducedProgress = useTransform(rawProgress, () => 1);
+  const reducedMotion = useReducedMotion();
+  const progress = reducedMotion ? reducedProgress : springProgress;
+  const [desktop, setDesktop] = useState(false);
+
+  useEffect(() => {
+    const media = window.matchMedia("(min-width: 1024px)");
+    const update = () => setDesktop(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    if (reducedMotion) {
+      rawProgress.set(1);
+    } else if (desktop) {
+      rawProgress.set(scrollYProgress.get());
+    } else {
+      rawProgress.set(0);
+    }
+  }, [desktop, rawProgress, reducedMotion, scrollYProgress]);
+
+  useMotionValueEvent(scrollYProgress, "change", (latest) => {
+    if (
+      desktop &&
+      !reducedMotion &&
+      !window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      rawProgress.set(latest);
+    }
+  });
+
+  return {
+    sectionRef,
+    progress,
+    reducedMotion: Boolean(reducedMotion),
+    desktop,
+  };
+}
+
+function PickIllustration({ progress }: { progress: ReturnType<typeof useSpring> }) {
+  const cursorX = useSpring(
+    useTransform(progress, [0.12, 0.2, 0.3], [-58, -58, -58]),
+    springSettings,
+  );
+  const cursorY = useSpring(useTransform(progress, [0.12, 0.2, 0.3], [0, -2, -2]), springSettings);
 
   return (
-    <Section>
-      <header className="mx-auto flex max-w-2xl flex-col items-center gap-4 text-center">
-        <span className="lux-eyebrow text-[var(--lime)]">Three simple steps</span>
-        <h2 className="lux-h2 lux-display text-[var(--ivory)]">From 3D viewport to your studio.</h2>
-      </header>
-
-      <div className="relative mt-14">
-        {/* Desktop connector: line draws with scroll, lime dot travels. */}
-        <svg
-          aria-hidden
-          viewBox="0 0 1200 4"
-          preserveAspectRatio="none"
-          className="pointer-events-none absolute top-[3.25rem] right-0 left-0 hidden h-1 md:block"
-        >
-          <motion.line
-            x1="0"
-            y1="2"
-            x2="1200"
-            y2="2"
-            stroke="var(--hairline-strong)"
-            strokeWidth="1"
-          />
-          <motion.line
-            x1="0"
-            y1="2"
-            x2="1200"
-            y2="2"
-            stroke="var(--lime)"
-            strokeWidth="1"
-            style={{ pathLength }}
-          />
-        </svg>
-
-        <ol
-          ref={trackRef}
-          className="relative grid grid-cols-1 gap-8 md:grid-cols-3 md:gap-6"
-        >
-          {steps.map((step, i) => (
-            <motion.li
-              key={step.number}
-              initial={{ opacity: 0, y: 18, filter: "blur(8px)" }}
-              whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-              viewport={viewportOnce}
-              transition={{ duration: 0.7, ease: EASE, delay: i * 0.08 }}
-              className="group relative flex flex-col gap-5 rounded-[var(--card-radius)] border border-[var(--hairline)] bg-[var(--surface-1)] p-7 [box-shadow:var(--inner-highlight)] transition-colors duration-500 hover:border-[var(--lime)]/40"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <span className="flex size-11 shrink-0 items-center justify-center rounded-[var(--inner-radius)] bg-[var(--surface-3)] text-[var(--lime)] ring-1 ring-[var(--hairline)] transition-shadow duration-500 group-hover:shadow-[0_0_20px_var(--lime-glow)]">
-                  <step.icon className="size-5" strokeWidth={1.5} aria-hidden />
-                </span>
-                {/* Small mono numeral, tucked top-right where it can never collide
-                    with the title or body copy below it. */}
-                <span className="lux-mono lux-tabular shrink-0 text-[10px] tracking-[0.18em] text-[var(--faint)]">
-                  {step.number}
-                </span>
-              </div>
-
-              {/* Fixed-height illustration well: identical in all three cards, so
-                  the copy block below starts on the same baseline. */}
-              <span className="flex h-10 items-center" aria-hidden>
-                {illustrations[i]}
-              </span>
-
-              <div className="mt-auto">
-                <h3 className="lux-display text-[22px] text-[var(--ivory)]">{step.title}</h3>
-                <p className="mt-2 text-[15px] leading-[1.6] text-[var(--muted)]">{step.body}</p>
-              </div>
-            </motion.li>
-          ))}
-        </ol>
-      </div>
-    </Section>
+    <svg className={styles.pickIllustration} viewBox="0 0 140 44" aria-hidden="true">
+      <circle cx="19" cy="22" r="12" fill="none" stroke="var(--hairline-strong)" />
+      <circle cx="54" cy="22" r="12" fill="var(--lime)" fillOpacity=".14" stroke="var(--lime)" />
+      <circle cx="89" cy="22" r="12" fill="none" stroke="var(--hairline-strong)" />
+      <motion.path
+        d="M111 9 111 30 117 25 122 32 126 29 121 22 129 21Z"
+        fill="var(--lime)"
+        style={{ x: cursorX, y: cursorY }}
+      />
+    </svg>
   );
 }
 
+function ShapeIllustration({ progress }: { progress: ReturnType<typeof useSpring> }) {
+  const firstThumb = useTransform(progress, [0.37, 0.52, 0.68], [18, 94, 94]);
+  const secondThumb = useTransform(progress, [0.37, 0.58, 0.68], [82, 45, 45]);
+
+  return (
+    <svg className={styles.shapeIllustration} viewBox="0 0 140 44" aria-hidden="true">
+      {[12, 30].map((y, index) => (
+        <g key={y}>
+          <path
+            d={`M12 ${y} H128`}
+            stroke="var(--hairline-strong)"
+            strokeWidth="2"
+            strokeLinecap="round"
+          />
+          <motion.circle
+            cx={index === 0 ? firstThumb : secondThumb}
+            cy={y}
+            r="5"
+            fill="var(--ink)"
+            stroke="var(--lime)"
+            strokeWidth="2"
+          />
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+function OwnIllustration({
+  progress,
+  staticState,
+}: {
+  progress: ReturnType<typeof useSpring>;
+  staticState: boolean;
+}) {
+  const ring = useTransform(progress, [0.68, 0.88, 0.94], [0, 0.9, 1]);
+  const check = useTransform(progress, [0.78, 0.9, 0.96], [0, 0.9, 1]);
+
+  return (
+    <svg className={styles.ownIllustration} viewBox="0 0 44 44" aria-hidden="true">
+      <motion.path
+        d="M22 4 C31.8 4 39.5 11.6 39.5 21.5 C39.5 31.3 31.7 39.5 21.8 39.5 C12 39.5 4.5 31.7 4.5 21.8 C4.5 12 12.1 4.2 22 4Z"
+        fill="none"
+        stroke="var(--lime)"
+        strokeWidth="2"
+        strokeLinecap="round"
+        style={{ pathLength: staticState ? 1 : ring }}
+      />
+      <motion.path
+        d="m14 22 5 5 11-12"
+        fill="none"
+        stroke="var(--ivory)"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{ pathLength: staticState ? 1 : check }}
+      />
+    </svg>
+  );
+}
+
+function LeaderLines({ progress }: { progress: ReturnType<typeof useSpring> }) {
+  const pick = useTransform(progress, [0.12, 0.2, 0.35, 0.37], [0, 1, 1, 0.5]);
+  const shape = useTransform(progress, [0.37, 0.46, 0.66, 0.7], [0, 1, 1, 0.5]);
+  const own = useTransform(progress, [0.68, 0.78, 0.95, 1], [0, 1, 1, 1]);
+
+  return (
+    <svg
+      className={styles.leaders}
+      viewBox="0 0 1000 1000"
+      preserveAspectRatio="none"
+      aria-hidden="true"
+    >
+      <motion.path
+        d="M225 222 C300 222 356 286 444 395"
+        fill="none"
+        stroke="var(--lime)"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        style={{ pathLength: pick }}
+      />
+      <motion.circle cx="444" cy="395" r="4" fill="var(--lime)" style={{ opacity: pick }} />
+      <motion.path
+        d="M775 470 C706 470 650 500 558 520"
+        fill="none"
+        stroke="var(--lime)"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        style={{ pathLength: shape }}
+      />
+      <motion.circle cx="558" cy="520" r="4" fill="var(--lime)" style={{ opacity: shape }} />
+      <motion.path
+        d="M225 776 C330 776 424 720 564 676"
+        fill="none"
+        stroke="var(--lime)"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        style={{ pathLength: own }}
+      />
+      <motion.circle cx="564" cy="676" r="4" fill="var(--lime)" style={{ opacity: own }} />
+    </svg>
+  );
+}
+
+function StepCard({
+  index,
+  progress,
+  desktop,
+  reducedMotion,
+}: {
+  index: number;
+  progress: ReturnType<typeof useSpring>;
+  desktop: boolean;
+  reducedMotion: boolean;
+}) {
+  const start = [0.1, 0.37, 0.68][index] ?? 0.1;
+  const end = [0.37, 0.68, 0.95][index] ?? 0.37;
+  const opacity = useTransform(
+    progress,
+    [0, start, start + 0.06, end - 0.04, end, 1],
+    index === 0
+      ? [0, 0, 1, 1, 0.5, 0.5]
+      : index === 1
+        ? [0, 0, 1, 1, 0.5, 0.5]
+        : [0, 0, 1, 1, 1, 1],
+  );
+  const y = useTransform(progress, [start, start + 0.06], [32, 0]);
+  const scale = useTransform(progress, [start, start + 0.06], [0.96, 1]);
+  const blur = useTransform(progress, [start, start + 0.06], [8, 0]);
+  const filter = useTransform(blur, (value) => `blur(${value}px)`);
+  const borderColor = useTransform(
+    progress,
+    [start, start + 0.06, end, end + 0.04],
+    ["rgba(198,241,53,0)", "rgba(198,241,53,.2)", "rgba(198,241,53,.2)", "rgba(255,255,255,.08)"],
+  );
+  const mini =
+    index === 0 ? (
+      <PickIllustration progress={progress} />
+    ) : index === 1 ? (
+      <ShapeIllustration progress={progress} />
+    ) : (
+      <OwnIllustration progress={progress} staticState={!desktop || reducedMotion} />
+    );
+
+  return (
+    <motion.li
+      className={`${styles.callout} ${styles[`callout${index + 1}`]}`}
+      style={{
+        opacity: reducedMotion || !desktop ? 1 : opacity,
+        y: reducedMotion || !desktop ? 0 : y,
+        scale: reducedMotion || !desktop ? 1 : scale,
+        filter: reducedMotion || !desktop ? "blur(0px)" : filter,
+        borderColor: reducedMotion || !desktop ? undefined : borderColor,
+      }}
+    >
+      <div className={styles.calloutHeader}>
+        <span className={styles.number}>{steps[index]?.number}</span>
+        <h3 className="lux-display">{steps[index]?.title}</h3>
+      </div>
+      <div className={styles.illustrationWell}>{mini}</div>
+      <p>{steps[index]?.body}</p>
+    </motion.li>
+  );
+}
+
+export function Process() {
+  const { sectionRef, progress, reducedMotion, desktop } = useSceneProgress();
+  const [nearbyMargin, setNearbyMargin] = useState<`${number}${"px" | "%"} 0px`>("150% 0px");
+  useEffect(() => {
+    const updateMargin = () => setNearbyMargin(`${Math.round(window.innerHeight * 1.5)}px 0px`);
+    updateMargin();
+    window.addEventListener("resize", updateMargin);
+    return () => window.removeEventListener("resize", updateMargin);
+  }, []);
+  const nearby = useInView(sectionRef, { margin: nearbyMargin });
+  const sectionStyle = { "--SECTION_SCROLL_VH": SECTION_SCROLL_VH } as CSSProperties;
+
+  return (
+    <section ref={sectionRef} className={styles.section} style={sectionStyle}>
+      <div className={styles.stage}>
+        <div className={styles.inner}>
+          <header className={styles.heading}>
+            <span className="lux-eyebrow">Three simple steps</span>
+            <h2 className="lux-h2 lux-display">From 3D viewport to your studio.</h2>
+          </header>
+
+          <div className={styles.canvasStage}>
+            <div className={styles.canvasRegion}>
+              {desktop && (nearby || reducedMotion) ? (
+                <LazyArtboard progress={progress} />
+              ) : (
+                <div className={styles.artboard} aria-hidden="true" />
+              )}
+            </div>
+            {desktop && !reducedMotion && nearby && <LeaderLines progress={progress} />}
+            <ol className={styles.steps}>
+              {steps.map((step, index) => (
+                <StepCard
+                  key={step.number}
+                  index={index}
+                  progress={progress}
+                  desktop={desktop}
+                  reducedMotion={reducedMotion}
+                />
+              ))}
+            </ol>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
