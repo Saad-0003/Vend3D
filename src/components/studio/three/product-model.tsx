@@ -23,6 +23,37 @@ import type { ModelSource } from "@/components/studio/three/use-model-source";
 /** plan.md: material updates tween over 300ms. */
 const TWEEN_MS = 300;
 
+/**
+ * Parsed GLBs per URL, shared across mounts. StrictMode remounts the canvas
+ * once in dev: without this cache the second mount refetches (and that request
+ * can wedge against the dev static pipeline), so the model that just rendered
+ * is torn down and never comes back — "appears then disappears". With the
+ * cache a remount reuses the already-parsed scene immediately. Failed loads
+ * evict so a later mount can retry.
+ */
+const glbCache = new Map<string, Promise<GLTF>>();
+
+function loadGlb(url: string): Promise<GLTF> {
+  const cached = glbCache.get(url);
+  if (cached) return cached;
+  // Fetch + parse bypasses FileLoader (its request/signal stack stalled in the
+  // field); parse() is pure and the GLBs are self-contained, so no path needed.
+  const load = new Promise<GLTF>((resolve, reject) => {
+    fetch(url, { cache: "no-store" })
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.arrayBuffer();
+      })
+      .then(
+        (buffer) => new Promise<GLTF>((res, rej) => new GLTFLoader().parse(buffer, "", res, rej)),
+      )
+      .then(resolve, reject);
+  });
+  glbCache.set(url, load);
+  load.catch(() => glbCache.delete(url));
+  return load;
+}
+
 /** Roughness for a finish value: glossy (100) is 0.12, matte (0) is 0.9. */
 export function roughnessFromFinish(finish: number): number {
   return THREE.MathUtils.lerp(0.9, 0.12, finish / 100);
@@ -100,7 +131,8 @@ function GlbModelInner(props: ModelShellProps) {
   // Manual load instead of `useLoader`: r3f's suspense cache aborts a load when
   // its boundary unmounts mid-flight (StrictMode re-mounts do exactly that),
   // leaving a forever-suspended entry — a blank stage with no error surfaced.
-  // A local load owns its lifecycle: abort on unmount, fresh load on remount.
+  // A local load owns its lifecycle; the module cache (see loadGlb) makes a
+  // remount reuse the same parse instead of refetching.
   const [gltf, setGltf] = useState<GLTF | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -108,22 +140,11 @@ function GlbModelInner(props: ModelShellProps) {
     let cancelled = false;
     setGltf(null);
     setFailed(false);
-    // Fetch + parse bypasses FileLoader (its request/signal stack stalled in the
-    // field); parse() is pure and the GLBs are self-contained, so no path needed.
-    const loader = new GLTFLoader();
     let settled = false;
     const watchdog = window.setTimeout(() => {
       if (!cancelled && !settled) setFailed(true);
     }, 20000);
-    fetch(props.product.model.glb, { cache: "no-store" })
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.arrayBuffer();
-      })
-      .then(
-        (buffer) =>
-          new Promise<GLTF>((resolve, reject) => loader.parse(buffer, "", resolve, reject)),
-      )
+    loadGlb(props.product.model.glb)
       .then((data) => {
         settled = true;
         clearTimeout(watchdog);

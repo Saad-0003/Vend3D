@@ -34,7 +34,7 @@ test.describe("real 3D models", () => {
   test.beforeEach(() => {
     pageErrors = [];
   });
-  test.afterEach(async (_fixtures, testInfo) => {
+  test.afterEach(async ({}, testInfo) => {
     if (pageErrors.length) {
       testInfo.attach("page-errors", {
         body: pageErrors.join("\n"),

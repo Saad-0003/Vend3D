@@ -59,7 +59,10 @@
 }
 
 .canvasStage {
-  --board-size: min(42vw, 520px, calc(100svh - 252px));
+  /* Slightly smaller than before: the artboard used to nearly touch the
+     viewport border at common desktop widths, competing with the page's own
+     margins. Same proportions, same animation — just tamer dimensions. */
+  --board-size: min(37vw, 460px, calc(100svh - 280px));
   position: relative;
   display: block;
   min-height: 0;
@@ -300,7 +303,7 @@
     inset: auto;
     display: grid;
     top: auto;
-    height: min(42vw, 520px);
+    height: min(37vw, 460px);
     min-height: 0;
     margin: 0;
   }

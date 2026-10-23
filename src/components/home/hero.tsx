@@ -20,8 +20,8 @@ const HeroModel = dynamic(() => import("@/components/home/hero-model").then((m) 
 
 const headlineLines = ["See it. Shape it.", "Own it."];
 
-// Colourways kept for the future 3D-model drop-in. Disabled on the home page
-// for now (no live card to drive), but the data + markup stay in place.
+// Colourways for the hero bottle: a plain click on the bottle applies the next
+// one to its body (the row of swatch circles was removed).
 const swatches = [
   { name: "Signal Lime", color: "#c6f135" },
   { name: "Ivory", color: "#f3f0e8" },
@@ -200,29 +200,22 @@ export function Hero() {
                 modelReady ? "opacity-0" : "opacity-100"
               }`}
             />
-            <HeroModel onLoaded={() => setModelReady(true)} />
+            <HeroModel
+              onLoaded={() => setModelReady(true)}
+              color={swatches[active]?.color ?? "#c6f135"}
+              onCycleColor={() => setActive((i) => (i + 1) % swatches.length)}
+            />
             {/* Attribution for the baked CC BY model (public/models/CREDITS.md). */}
             <span className="lux-mono absolute right-2 bottom-2 rounded-full bg-black/40 px-2 py-0.5 text-[9px] tracking-[0.14em] text-[var(--faint)] uppercase backdrop-blur">
               Bottle model · Poly by Google · CC BY 3.0
             </span>
           </motion.div>
 
-          {/* Colourways — preserved for the future model, disabled for now. */}
-          <ul aria-label="Available colorways" className="flex items-center gap-3">
-            {swatches.map((s, i) => (
-              <li key={s.name}>
-                <button
-                  type="button"
-                  aria-label={s.name}
-                  aria-pressed={active === i}
-                  disabled
-                  onClick={() => setActive(i)}
-                  className="relative block size-6 cursor-not-allowed rounded-full opacity-40 ring-1 ring-[var(--hairline-strong)]"
-                  style={{ backgroundColor: s.color }}
-                />
-              </li>
-            ))}
-          </ul>
+          {/* Colourway hint — the swatch circles were removed; a plain click on
+              the bottle cycles them, so the current colour stays discoverable. */}
+          <p className="lux-mono text-center text-[10px] tracking-[0.16em] text-[var(--muted)] uppercase">
+            Drag to orbit · Click to try {swatches[(active + 1) % swatches.length]?.name}
+          </p>
         </motion.div>
       </div>
 

@@ -32,6 +32,12 @@ export type CanvasHandle = {
  * parent drives camera actions through `handle`, and `onInteract` fires on
  * every user orbit so the parent can pause auto-rotate.
  */
+// Module-level so the StrictMode remount doesn't replay them: a remount that
+// restarted both states would fade the canvas out and probe again — the model
+// visibly disappears for a beat on every dev reload.
+let webglKnown: boolean | null = null;
+let canvasEverShown = false;
+
 export default function ProductCanvas({
   product,
   configuration,
@@ -51,14 +57,20 @@ export default function ProductCanvas({
   onInteract?: () => void;
   handle: MutableRefObject<CanvasHandle | null>;
 }) {
-  const [webgl, setWebgl] = useState<boolean | null>(null);
+  const [webgl, setWebgl] = useState<boolean | null>(() => webglKnown);
   // Mount cross-fade: softens the swap when the route carries a new product.
-  const [shown, setShown] = useState(false);
+  const [shown, setShown] = useState(canvasEverShown);
 
   useEffect(() => {
-    const probe = document.createElement("canvas");
-    setWebgl(!!(probe.getContext("webgl2") || probe.getContext("webgl")));
-    const id = requestAnimationFrame(() => setShown(true));
+    if (webglKnown === null) {
+      const probe = document.createElement("canvas");
+      webglKnown = !!(probe.getContext("webgl2") || probe.getContext("webgl"));
+    }
+    setWebgl(webglKnown);
+    const id = requestAnimationFrame(() => {
+      canvasEverShown = true;
+      setShown(true);
+    });
     return () => cancelAnimationFrame(id);
   }, []);
 

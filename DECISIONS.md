@@ -1051,3 +1051,35 @@ an unrelated pre-existing failure that blocked the whole unit suite; JS-less CSS
 keeps the module graph intact for component tests.
 **Alternatives rejected:** altering `postcss.config.mjs` (consumer-facing); dropping the CSS
 import (weakens the test).
+
+### D-069 · Hero bottle: full pointer orbit, click-to-cycle colourways, circles removed
+
+**What:** the hero bottle now orbits on drag in both axes — yaw (inertia preserved) plus a
+clamped pitch (`±0.95 rad`, OrbitControls direction: drag down brings the camera above) — and
+a no-movement click on the bottle advances the colourway, which re-tints the `body` mesh via a
+300 ms material tween. The disabled row of swatch circles under the visual is gone; a small
+"Drag to orbit · Click to try <name>" hint sits below the visual instead.
+**Why:** the circles were dead UI (disabled buttons), and the brief asked for a real 360 view
+from above/below plus working colours — clicking the object is the discoverable interaction.
+**Alternatives rejected:** keeping working circles (the brief said remove); unclamped pitch
+(the bottle would flip upside down); recolouring lid/trim too (loses the authored identity).
+
+### D-070 · Module-level caches so the studio survives StrictMode remounts
+
+**What:** `loadGlb` memoises the fetch+parse promise per GLB URL (failures evict), the resolved
+source answer is memoised per path in `useModelSource`, and `ProductCanvas` keeps its WebGL
+verdict and fade state at module scope so remounts resume exactly where the first mount left.
+**Why:** in dev StrictMode tears the whole screen down and re-mounts it: the old code reset to
+"checking" (canvas unmounts — the model visibly disappears) and refetched the GLB, a request
+that can wedge against the dev static pipeline, leaving a permanently blank stage. The caches
+make the remount reuse the resolved answer and already-parsed scene with no repaint.
+**Alternatives rejected:** disabling StrictMode globally (masks real dev-time issues); passing
+state down from the screen (spreads the cache across the component tree and still repaints).
+
+### D-071 · Three-step artboard size trimmed
+
+**What:** `--board-size` in `process.module.css` reduced from `min(42vw, 520px, 100svh-252px)`
+to `min(37vw, 460px, 100svh-280px)`; the reduced-motion fallback height matches.
+**Why:** the palette nearly touched the viewport borders at common desktop sizes. Purely
+dimensional — the artboard artwork, keyframes and scroll animation are untouched.
+**Alternatives rejected:** adding page-edge padding (changes the whole section's rhythm).
