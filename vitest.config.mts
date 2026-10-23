@@ -4,6 +4,10 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   plugins: [react()],
+  // Vite crashes loading the Tailwind string-plugin PostCSS config when a test
+  // imports a CSS module; tests don't need Tailwind output, so inline an empty
+  // config instead of the project file. ()
+  css: { postcss: { plugins: [] } },
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),

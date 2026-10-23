@@ -961,3 +961,93 @@ which AGENTS.md forbids, so the contract is proven in `tests/unit/route-skeleton
 it is deterministic. Also rejected: adding a `role="alert"` beside `ErrorState`'s own (it double-
 announces), and a second shimmer animation on `Skeleton` — the house primitive is the documented
 `animate-pulse` (DESIGN.md §5), so "shimmer, no spinners" is satisfied by reusing it.
+### D-059 · Real GLB filenames `{bottle, cap, shirt, mug}.glb` (not `{slug}.glb`)
+
+**What:** the four baked models ship as `public/models/bottle.glb`, `cap.glb`, `shirt.glb`,
+`mug.glb` + `public/models/CREDITS.md`; `ProductConfig.model.glb` points at those literal names.
+**Why:** the mega-task spec fixed the filenames; architecture.md's `{slug}.glb` naming
+(`heavyweight-boxy-tee.glb`) was the alternative.
+**Alternatives rejected:** renaming to `{slug}.glb` (touches the brief); dual aliases (dead weight).
+
+### D-060 · Model sources: Poly by Google (CC BY 3.0) ×3 + MilkAndBanana (CC0)
+
+**What:** bottle `dm0ZTuKAs45`, cap `aaC5GgcWEhM`, tee `bdOMzzh-fSl` (Poly by Google, CC BY 3.0);
+mug `54cOZNS04L` (MilkAndBanana, CC0 1.0). Credits live in `CREDITS.md`, the hero shows an
+attribution chip and the studio stage an attribution link (required for CC BY).
+**Why:** free, no Draco/meshopt needed, materials baked into the GLBs, and all four ship
+separable meshes matching `PartConfig.meshNames` (body/lid/trim, crown/brim, body, body/handle).
+**Alternatives rejected:** Sketchfab/fab downloads (licence terms vary); paid libraries.
+
+### D-061 · No mesh compression for the four models
+
+**What:** GLBs ship as plain glTF-binary (10–35 KB each), no Draco/meshopt, no texture repack.
+**Why:** every file is far below the 200 KB budget already; compression adds a decoder to the
+bundle which the budget does not justify for four tiny meshes.
+**Alternatives rejected:** Draco/meshopt pipelines (`optimize:models`) — kept for future heavy assets.
+
+### D-062 · Studio loads GLBs with a manual fetch + `GLTFLoader.parse`, not `useLoader`
+
+**What:** `GlbModelInner` owns the load: `fetch(url, { cache: "no-store" })` → `loader.parse()`
+with a 20 s watchdog; hooks stay unconditional (`useMemo` before any early return); a failed or
+timed-out load throws into `GlbErrorBoundary` → placeholder.
+**Why:** r3f v9's `useLoader` suspense cache aborts an entry when its boundary unmounts
+mid-flight (StrictMode remounts do exactly that), leaving a forever-suspended component — a
+blank stage with no error. A local load owns its lifecycle and surfaces failures.
+**Alternatives rejected:** drei `useGLTF.preload` (same cache); disabling StrictMode (global).
+
+### D-063 · The studio GLB request bypasses the HTTP cache
+
+**What:** both the model `GET` (`cache: "no-store"`) and the `HEAD` probe in `useModelSource`
+skip the HTTP cache.
+**Why:** during verification the app's own GET arrived with an empty body or hung against the
+dev server's `public, max-age=0` + ETag revalidation when a HEAD for the same URL had warmed an
+entry; production serves cleanly but `no-store` on a ≤35 KB one-shot fetch costs nothing.
+**Alternatives rejected:** `headers()` cache rules in `next.config.ts` (wider blast radius);
+keeping default caching (reproduced again on the second dev cold start).
+
+### D-064 · Models centre on the origin; the shell sets scale, not multiplies
+
+**What:** `ModelShell` fit now centres the mid-box on the origin (the old `min.y` floor-rest is
+gone) and uses `setScalar(fit)` instead of `multiplyScalar`.
+**Why:** the placeholder geometry (and the decal anchors, ContactShadows plane at `y = -1.15`
+and camera presets) is authored for a model centred at the origin; floor-resting pushed the top
+half of every real model out of frame and left it floating above its shadow. `setScalar` keeps
+the fit idempotent under StrictMode's double-invoke of layout effects in dev.
+**Alternatives rejected:** retuning the four camera presets (re-scaling per product instead
+reuses the existing `model.scale` lever); leaving the fit as-is (models clipped).
+
+### D-065 · Per-product `model.scale`: tee 0.9, mug 0.8, cap 1.3
+
+**What:** config values tuned so each product composes with its own camera preset distances.
+**Why:** the shell normalises the longest side to 2.2, but framing depends on each preset's
+distance; the mug (wide + close cameras) overflowed, the cap's source bounding box far exceeds
+its visual extent so it under-sized.
+**Alternatives rejected:** one global target size (can't fit all four cameras); moving presets.
+
+### D-066 · Product-card preload via plain `fetch`, not `useGLTF.preload`
+
+**What:** hovering a product card warms the browser cache with a module-level `prefetchedModels`
+`fetch()` instead of drei's `useGLTF.preload`.
+**Why:** drei's preload imports the three.js module graph into the shared storefront bundle —
+the exact leak AGENTS §6.5 forbids; a fetch warms only the HTTP cache.
+**Alternatives rejected:** `next/dynamic` at the card level (heavier island).
+
+### D-067 · The 3D spec runs Chromium-only and hard against pixels
+
+**What:** `tests/e2e/three-d.spec.ts` pins `browserName: "chromium"` with
+`--enable-unsafe-swiftshader`; the studio test reads the last WebGL frame via `readPixels`
+(`preserveDrawingBuffer` is on) and demands ≥2 % opaque coverage per product.
+**Why:** headless WebKit WebGL is unreliable in CI drivers, and DOM-only assertions passed a
+known blank-stage failure mode; pixel coverage is the contract.
+**Alternatives rejected:** asserting the store's `onReady` flag (indirect); permanent
+triage-free retries (AGENTS: retries only in CI).
+
+### D-068 · Vitest renders an empty inline PostCSS pipeline
+
+**What:** `vitest.config.mts` sets `css: { postcss: { plugins: [] } }`.
+**Why:** with the consumer CSS imported by the landing page, Vitest ran `.css` files through
+the project PostCSS config and crashed on a plugin ("Invalid PostCSS Plugin at plugins[0]"),
+an unrelated pre-existing failure that blocked the whole unit suite; JS-less CSS processing
+keeps the module graph intact for component tests.
+**Alternatives rejected:** altering `postcss.config.mjs` (consumer-facing); dropping the CSS
+import (weakens the test).

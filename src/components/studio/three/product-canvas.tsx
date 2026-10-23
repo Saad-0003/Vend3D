@@ -52,10 +52,14 @@ export default function ProductCanvas({
   handle: MutableRefObject<CanvasHandle | null>;
 }) {
   const [webgl, setWebgl] = useState<boolean | null>(null);
+  // Mount cross-fade: softens the swap when the route carries a new product.
+  const [shown, setShown] = useState(false);
 
   useEffect(() => {
     const probe = document.createElement("canvas");
     setWebgl(!!(probe.getContext("webgl2") || probe.getContext("webgl")));
+    const id = requestAnimationFrame(() => setShown(true));
+    return () => cancelAnimationFrame(id);
   }, []);
 
   if (webgl === null) return null;
@@ -71,36 +75,40 @@ export default function ProductCanvas({
   }
 
   return (
-    <Canvas
-      dpr={DPR}
-      camera={{ position: product.model.cameraPresets.front, fov: 35 }}
-      gl={{ antialias: true, alpha: true, preserveDrawingBuffer: true }}
-      onCreated={({ gl }) => {
-        gl.toneMapping = THREE.ACESFilmicToneMapping;
-        gl.outputColorSpace = THREE.SRGBColorSpace;
-      }}
+    <div
+      className={`size-full transition-opacity duration-500 ${shown ? "opacity-100" : "opacity-0"}`}
     >
-      <StudioEnvironment />
-      <ambientLight intensity={0.25} />
-      <directionalLight position={[3, 4, 2]} intensity={1.1} />
-      <directionalLight position={[-3, 2, -3]} intensity={0.5} color="#d7e7ff" />
-      <Suspense fallback={null}>
-        <ProductModel
+      <Canvas
+        dpr={DPR}
+        camera={{ position: product.model.cameraPresets.front, fov: 35 }}
+        gl={{ antialias: true, alpha: true, preserveDrawingBuffer: true }}
+        onCreated={({ gl }) => {
+          gl.toneMapping = THREE.ACESFilmicToneMapping;
+          gl.outputColorSpace = THREE.SRGBColorSpace;
+        }}
+      >
+        <StudioEnvironment />
+        <ambientLight intensity={0.25} />
+        <directionalLight position={[3, 4, 2]} intensity={1.1} />
+        <directionalLight position={[-3, 2, -3]} intensity={0.5} color="#d7e7ff" />
+        <Suspense fallback={null}>
+          <ProductModel
+            product={product}
+            configuration={configuration}
+            source={source}
+            decalUrl={decalUrl}
+            onReady={onReady}
+          />
+        </Suspense>
+        <ContactShadows position={[0, -1.15, 0]} opacity={0.5} scale={6} blur={2.4} far={3} />
+        <CameraRig
           product={product}
-          configuration={configuration}
-          source={source}
-          decalUrl={decalUrl}
-          onReady={onReady}
+          autoRotate={autoRotate}
+          onInteract={onInteract}
+          handle={handle}
         />
-      </Suspense>
-      <ContactShadows position={[0, -1.15, 0]} opacity={0.5} scale={6} blur={2.4} far={3} />
-      <CameraRig
-        product={product}
-        autoRotate={autoRotate}
-        onInteract={onInteract}
-        handle={handle}
-      />
-    </Canvas>
+      </Canvas>
+    </div>
   );
 }
 

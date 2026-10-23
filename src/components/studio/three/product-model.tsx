@@ -1,9 +1,18 @@
 "use client";
 
-import { Component, Suspense, useEffect, useLayoutEffect, useMemo, useRef, type ReactNode } from "react";
-import { useFrame, useLoader } from "@react-three/fiber";
+import {
+  Component,
+  Suspense,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { GLTFLoader, type GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { DecalGeometry } from "three/examples/jsm/geometries/DecalGeometry.js";
 
 import type { ProductConfig } from "@/lib/products/config";
@@ -88,13 +97,61 @@ function GlbModel(props: ModelShellProps) {
 }
 
 function GlbModelInner(props: ModelShellProps) {
-  const gltf = useLoader(GLTFLoader, props.product.model.glb);
-  const root = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
+  // Manual load instead of `useLoader`: r3f's suspense cache aborts a load when
+  // its boundary unmounts mid-flight (StrictMode re-mounts do exactly that),
+  // leaving a forever-suspended entry — a blank stage with no error surfaced.
+  // A local load owns its lifecycle: abort on unmount, fresh load on remount.
+  const [gltf, setGltf] = useState<GLTF | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setGltf(null);
+    setFailed(false);
+    // Fetch + parse bypasses FileLoader (its request/signal stack stalled in the
+    // field); parse() is pure and the GLBs are self-contained, so no path needed.
+    const loader = new GLTFLoader();
+    let settled = false;
+    const watchdog = window.setTimeout(() => {
+      if (!cancelled && !settled) setFailed(true);
+    }, 20000);
+    fetch(props.product.model.glb, { cache: "no-store" })
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.arrayBuffer();
+      })
+      .then(
+        (buffer) =>
+          new Promise<GLTF>((resolve, reject) => loader.parse(buffer, "", resolve, reject)),
+      )
+      .then((data) => {
+        settled = true;
+        clearTimeout(watchdog);
+        if (!cancelled) setGltf(data);
+      })
+      .catch(() => {
+        settled = true;
+        clearTimeout(watchdog);
+        if (!cancelled) setFailed(true);
+      });
+    return () => {
+      cancelled = true;
+      clearTimeout(watchdog);
+    };
+  }, [props.product.model.glb]);
+
+  if (failed) throw new Error(`GLB failed to load: ${props.product.model.glb}`);
+  // Hooks stay unconditional: the clone memo runs on every render of the mount.
+  const root = useMemo(() => (gltf ? gltf.scene.clone(true) : null), [gltf]);
+  if (!gltf || !root) return null;
   return <ModelShell {...props} root={root} owned />;
 }
 
 function PlaceholderModel(props: ModelShellProps) {
-  const root = useMemo(() => buildPlaceholder(props.product.placeholder), [props.product.placeholder]);
+  const root = useMemo(
+    () => buildPlaceholder(props.product.placeholder),
+    [props.product.placeholder],
+  );
   return <ModelShell {...props} root={root} owned />;
 }
 
@@ -127,10 +184,14 @@ function ModelShell({
     const size = box.getSize(new THREE.Vector3());
     const longest = Math.max(size.x, size.y, size.z) || 1;
     const fit = (2.2 / longest) * product.model.scale;
-    root.scale.multiplyScalar(fit);
+    // SETScalar, not multiply: StrictMode re-runs this effect in dev and a
+    // run twice would compound. A fresh clone starts at scale 1.
+    root.scale.setScalar(fit);
+    // Centre the mid-box on the origin (no floor resting): the cameras,
+    // ContactShadows plane and decal anchors are authored for the placeholder
+    // convention — a model centred at the origin with the shadow just beneath.
     const centred = new THREE.Box3().setFromObject(root).getCenter(new THREE.Vector3());
     root.position.sub(centred);
-    root.position.y -= new THREE.Box3().setFromObject(root).min.y;
   }, [root, product.model.scale]);
 
   useLayoutEffect(() => {

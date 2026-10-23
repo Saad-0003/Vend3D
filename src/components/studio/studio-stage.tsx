@@ -121,7 +121,13 @@ export function StudioStage({
           aria-label="Viewer controls"
           className="flex flex-wrap items-center justify-center gap-1 rounded-full bg-[var(--surface-2)]/80 p-1 ring-1 ring-[var(--hairline-strong)] backdrop-blur-xl"
         >
-          <ToolButton label="Reset view" onClick={() => { handle.current?.reset(); onReset(); }}>
+          <ToolButton
+            label="Reset view"
+            onClick={() => {
+              handle.current?.reset();
+              onReset();
+            }}
+          >
             <RotateCcw className="size-4" strokeWidth={1.5} />
           </ToolButton>
           <ToolButton
@@ -172,6 +178,16 @@ export function StudioStage({
         <p className="lux-mono text-[10px] tracking-[0.16em] text-[var(--faint)] uppercase">
           Drag to rotate · Scroll to zoom
         </p>
+        {product.model.credit ? (
+          <a
+            href={product.model.credit.url}
+            target="_blank"
+            rel="noreferrer"
+            className="lux-mono text-[10px] tracking-[0.16em] text-[var(--faint)] uppercase transition-colors duration-300 hover:text-[var(--muted)]"
+          >
+            {product.model.credit.label}
+          </a>
+        ) : null}
       </div>
     </section>
   );
