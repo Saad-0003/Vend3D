@@ -4,6 +4,10 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   plugins: [react()],
+  // GLB imports resolve to hashed asset URLs in the webpack build (next.config.ts
+  // `asset/resource`); Vite needs to treat them as assets too, or importing
+  // `products/config` parses the binary as JavaScript.
+  assetsInclude: ["**/*.glb"],
   // Vite crashes loading the Tailwind string-plugin PostCSS config when a test
   // imports a CSS module; tests don't need Tailwind output, so inline an empty
   // config instead of the project file. ()

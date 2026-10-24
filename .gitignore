@@ -17,6 +17,9 @@
 /blob-report
 /playwright/.cache
 
+# throwaway verification scripts + screenshots
+.tmp-*
+
 # optimized 3D output (generated from models-src by npm run optimize:models)
 /public/models/optimized
 

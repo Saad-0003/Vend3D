@@ -1083,3 +1083,74 @@ to `min(37vw, 460px, 100svh-280px)`; the reduced-motion fallback height matches.
 **Why:** the palette nearly touched the viewport borders at common desktop sizes. Purely
 dimensional — the artboard artwork, keyframes and scroll animation are untouched.
 **Alternatives rejected:** adding page-edge padding (changes the whole section's rhythm).
+
+### D-072 - GLB assets move into `src/assets/models` and are bundled
+
+**What:** the four GLBs moved from `public/models/` to `src/assets/models/` and are imported as
+module assets (`import bottleGlb from "@/assets/models/bottle.glb"`). `next.config.ts` gains an
+`asset/resource` rule emitting `static/media/[name].[hash][ext]`, `src/types/glb.d.ts` types the
+import, and `vitest.config.mts` sets `assetsInclude: ["**/*.glb"]` so unit tests can import the
+product config. `public/models/CREDITS.md` stays where it is as the licence document.
+
+**Why:** serving the GLBs from `public/` made the dev static pipeline part of the load path; the
+hashed, build-time asset URLs remove that variable entirely and give immutable caching in prod.
+
+**Alternatives rejected:** keeping `public/models/*.glb` (dev static server flakiness); inlining
+the GLBs as base64 data URLs (they would land in the JS bundle four times over).
+
+### D-073 - Module-init GLB prefetch; PMREM bake could wedge a pending fetch
+
+**What:** `product-model.tsx` kicks off `loadGlbEntry()` for every product config at studio chunk
+evaluation (`if (typeof window !== "undefined")`), before any canvas exists. The studio loader also
+grew a render-time suspense over a module-level entry cache with a 20 s watchdog.
+
+**Why:** the blank stage had a specific cause, isolated with a throwaway `/debug-glb` page: a GLB
+`fetch` that starts or settles while `StudioEnvironment` synchronously bakes
+`PMREMGenerator.fromScene` never resolves its promise, even though the network layer has delivered
+the full 200 body. The prefetch finishes before the first bake, so the bake can no longer race a
+live request. The debug page and probe scripts were deleted once the fix was proven in dev and prod.
+
+**Alternatives rejected:** replacing the PMREM bake with a downloaded HDRI (new binary asset, worse
+first paint); moving the bake after the model mounts (the environment would pop in late).
+
+### D-074 - Hero: true 360 orbit, adaptive studio zoom bounds
+
+**What:** the hero bottle uses drei `OrbitControls` with free yaw, pitch clamped to
+`[0.2, PI-0.2]`, auto-rotate at 2.73 (one revolution every ~22 s) that pauses while dragging,
+no zoom/pan, and `reset()` on double click; a sub-6 px press still advances the colourway. The
+studio derives its zoom limits from the canvas: `fitScale = clamp(min(w,h)/790, 0.6, 1.25)`,
+`minDistance = preset*0.5*fitScale`, `maxDistance = max(preset*2*fitScale, preset*1.2)`.
+
+**Why:** dragging shipped as a 180-degree tilt only; users asked for a full 360 spin in place and
+for zoom that tracks the stage size rather than a fixed camera distance.
+
+**Alternatives rejected:** hand-rolled spherical math (drei's controls already handle inertia and
+touch); fixed zoom bounds (over-zoom on phones, under-zoom on wide screens).
+
+### D-075 - Studio round 2: section order, engraving colour/fonts, finish range, static model
+
+**What:**
+- Section chips read Colour, Finish, Engrave, Decal, Options, Details and wrap onto a second row
+  instead of scrolling horizontally (the last chip used to clip under the card edge).
+- Engraving gained a `color` field (zod `.default("#f2f0eb")`, so saved designs stay valid) with a
+  six-swatch palette, a live text preview, and real 3D output: the text is drawn into a transparent
+  canvas texture in the chosen font/colour and projected onto the part's front decal zone, sunk by
+  `depthMm`.
+- The finish control maps its whole track onto the part's `glossRange` (the mug's 60-100 previously
+  left half the bar dead) and drives `envMapIntensity` alongside roughness, so matte vs gloss reads
+  as a reflection change rather than a flat tint. The decorative sphere preview above the bar is
+  gone.
+- The studio model is static by default: auto-rotate is opt-in via the toolbar and orbiting simply
+  pauses it (the 4 s idle resume was removed).
+
+**Why:** the brief called out overlapping chips, wrong order, non-working engraving colour/fonts,
+a finish slider that did little, wasted vertical space and a model that never sat still.
+
+**Alternatives rejected:** true carved geometry for engraving (needs per-glyph CSG; a tinted
+projection is the honest preview for a laser etch); keeping the multi-part finish subranges but
+remapping only the label (the dead track half is the bug).
+
+### D-076 - `.tmp-*` ignored
+
+**What:** `.gitignore` ignores `.tmp-*`. **Why:** verification screenshots and one-off Playwright
+probes are written there and should never be staged.

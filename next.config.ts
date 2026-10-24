@@ -40,6 +40,17 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: storageRemotePatterns(),
   },
+  webpack(config) {
+    // GLBs ship as hashed static assets served from the bundler's own output
+    // (the dev static /public handler has proven unreliable for these bodies
+    // on this machine); three.js loads the emitted URL at runtime.
+    config.module.rules.push({
+      test: /\.glb$/,
+      type: "asset/resource",
+      generator: { filename: "static/media/[name].[hash][ext]" },
+    });
+    return config;
+  },
 };
 
 export default withBundleAnalyzer(nextConfig);

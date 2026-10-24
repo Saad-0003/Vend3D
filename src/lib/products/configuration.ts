@@ -11,6 +11,9 @@ export const CONFIGURATION_VERSION = 1 as const;
 
 const hexSchema = z.string().regex(/^#[0-9a-f]{6}$/i);
 
+/** Default engraving colour (ivory etch) when a config predates the colour field. */
+export const ENGRAVE_COLOR_DEFAULT = "#f2f0eb";
+
 export const configurationSchema = z.object({
   version: z.literal(CONFIGURATION_VERSION),
   slug: z.string().min(1),
@@ -20,6 +23,8 @@ export const configurationSchema = z.object({
     enabled: z.boolean(),
     text: z.string().max(40),
     font: z.string(),
+    /** Fill colour of the engraved text. Defaults keep older saved designs valid. */
+    color: hexSchema.default(ENGRAVE_COLOR_DEFAULT),
     depthMm: z.number().min(0.05).max(0.4),
     sizePct: z.number().min(40).max(100),
   }),
@@ -84,6 +89,7 @@ export function reconcile(product: ProductConfig, input: Configuration): Configu
     enabled: product.engrave.enabled && input.engrave.enabled,
     text: input.engrave.text.slice(0, product.engrave.maxChars || 0),
     font: fontIds.includes(input.engrave.font) ? input.engrave.font : (fontIds[0] ?? ""),
+    color: isHex(input.engrave.color) ? input.engrave.color.toUpperCase() : ENGRAVE_COLOR_DEFAULT,
     depthMm: input.engrave.depthMm,
     sizePct: input.engrave.sizePct,
   };
@@ -105,7 +111,7 @@ export function defaultConfiguration(product: ProductConfig): Configuration {
     slug: product.slug,
     parts: {},
     extras: {},
-    engrave: { enabled: false, text: "", font: "", depthMm: 0.12, sizePct: 70 },
+    engrave: { enabled: false, text: "", font: "", color: ENGRAVE_COLOR_DEFAULT, depthMm: 0.12, sizePct: 70 },
     decal: null,
   });
 }

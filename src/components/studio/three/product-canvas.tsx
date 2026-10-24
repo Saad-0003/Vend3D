@@ -14,10 +14,20 @@ import type { ModelSource } from "@/components/studio/three/use-model-source";
 
 /** plan.md §Phase 5: cap device pixel ratio at 2 for the viewer. */
 const DPR: [number, number] = [1, 2];
-/** Auto-rotate resumes after this much idle time, per the studio spec. */
-export const AUTO_ROTATE_RESUME_MS = 4_000;
-const ZOOM_MIN = 2;
-const ZOOM_MAX = 8;
+/**
+ * Zoom bounds adapt to the stage (see zoomBounds below); the floor values are
+ * also safe defaults for canvases that report an extreme size.
+ */
+function zoomBounds(presetDistance: number, size: { width: number; height: number }) {
+  const fitScale = THREE.MathUtils.clamp(
+    Math.min(size.width, size.height) / 790,
+    0.6,
+    1.25,
+  );
+  const min = presetDistance * 0.5 * fitScale;
+  const max = Math.max(presetDistance * 2 * fitScale, presetDistance * 1.2);
+  return { min, max };
+}
 
 export type CanvasHandle = {
   reset: () => void;
@@ -150,8 +160,19 @@ function CameraRig({
 }) {
   const camera = useThree((s) => s.camera);
   const gl = useThree((s) => s.gl);
+  const size = useThree((s) => s.size);
   const controls = useRef<OrbitControlsImpl | null>(null);
   const motion = useRef<number | null>(null);
+
+  const presetDistance = useMemo(
+    () =>
+      new THREE.Vector3(...product.model.cameraPresets.front).length(),
+    [product.model.cameraPresets],
+  );
+  const bounds = useMemo(
+    () => zoomBounds(presetDistance, size),
+    [presetDistance, size],
+  );
 
   useEffect(() => {
     const cancelMotion = () => {
@@ -184,8 +205,8 @@ function CameraRig({
         const offset = camera.position.clone().sub(c.target);
         const dist = THREE.MathUtils.clamp(
           offset.length() * (direction === 1 ? 0.85 : 1.18),
-          ZOOM_MIN,
-          ZOOM_MAX,
+          bounds.min,
+          bounds.max,
         );
         glide(c.target.clone().add(offset.normalize().multiplyScalar(dist)), 300);
       },
@@ -196,7 +217,7 @@ function CameraRig({
       cancelMotion();
       handle.current = null;
     };
-  }, [camera, gl, handle, product.model.cameraPresets]);
+  }, [camera, gl, handle, product.model.cameraPresets, bounds]);
 
   return (
     <OrbitControls
@@ -205,8 +226,8 @@ function CameraRig({
       enablePan={false}
       enableDamping
       dampingFactor={0.08}
-      minDistance={ZOOM_MIN}
-      maxDistance={ZOOM_MAX}
+      minDistance={bounds.min}
+      maxDistance={bounds.max}
       minPolarAngle={Math.PI / 4}
       maxPolarAngle={Math.PI / 1.8}
       autoRotate={autoRotate}

@@ -19,6 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { ProductConfig } from "@/lib/products/config";
+import { ENGRAVE_COLORS } from "@/lib/products/config";
 import { clampFinish, hexToHue, isHex, type Configuration } from "@/lib/products/configuration";
 import { scrollToSection } from "@/lib/lenis";
 import { cn } from "@/lib/utils";
@@ -93,15 +94,15 @@ export function StudioSidebar({
         </span>
 
         <nav aria-label="Jump to section">
-          <ul className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">
+          <ul className="flex flex-wrap gap-2">
             {chips.map((id) => (
-              <li key={id} className="shrink-0">
+              <li key={id} className="min-w-0">
                 <button
                   type="button"
                   aria-current={active === id ? "true" : undefined}
                   onClick={() => jumpTo(id)}
                   className={cn(
-                    "lux-mono min-h-11 rounded-full px-4 text-[11px] tracking-[0.14em] uppercase ring-1 transition-colors duration-300",
+                    "lux-mono min-h-11 rounded-full px-3.5 text-[11px] whitespace-nowrap tracking-[0.14em] uppercase ring-1 transition-colors duration-300",
                     active === id
                       ? "bg-[var(--lime)] text-[var(--ink)] ring-[var(--lime)]"
                       : "bg-[var(--surface-2)] text-[var(--muted)] ring-[var(--hairline)] hover:text-[var(--ivory)]",
@@ -276,6 +277,8 @@ function FinishSection({
         interactive
         label={`${part.label} finish`}
         gloss={gloss}
+        min={part.glossRange[0]}
+        max={part.glossRange[1]}
         onGlossChange={(next) =>
           onChange({
             ...configuration,
@@ -341,6 +344,17 @@ function EngraveSection({
             <p className="lux-mono text-[11px] tracking-[0.12em] text-[var(--muted)] uppercase">
               {engrave.text.length} / {maxChars}
             </p>
+            <p
+              aria-hidden
+              data-testid="engrave-preview"
+              className="truncate rounded-[var(--inner-radius)] bg-[var(--surface-2)] px-4 py-3 text-[20px] ring-1 ring-[var(--hairline)]"
+              style={{
+                fontFamily: product.engrave.fonts.find((f) => f.id === engrave.font)?.css,
+                color: engrave.color,
+              }}
+            >
+              {engrave.text.trim() || "Your text"}
+            </p>
           </div>
 
           <div className="flex flex-col gap-2">
@@ -360,6 +374,35 @@ function EngraveSection({
                 </ToggleGroupItem>
               ))}
             </ToggleGroup>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <span className="lux-mono text-[11px] tracking-[0.16em] text-[var(--muted)] uppercase">
+              Engraving colour
+            </span>
+            <ul aria-label="Engraving colour" className="flex flex-wrap items-center gap-2.5">
+              {ENGRAVE_COLORS.map((swatch) => {
+                const selected = engrave.color.toLowerCase() === swatch.hex.toLowerCase();
+                return (
+                  <li key={swatch.name}>
+                    <button
+                      type="button"
+                      aria-label={`${swatch.name} ${swatch.hex}`}
+                      aria-pressed={selected}
+                      onClick={() => onChange({ ...configuration, engrave: { ...engrave, color: swatch.hex.toUpperCase() } })}
+                      className={cn(
+                        "flex size-9 items-center justify-center rounded-full transition-shadow duration-300",
+                        selected
+                          ? "ring-2 ring-[var(--lime)] ring-offset-2 ring-offset-[var(--surface-1)]"
+                          : "ring-1 ring-[var(--hairline-strong)]",
+                      )}
+                    >
+                      <span className="block size-6 rounded-full" style={{ backgroundColor: swatch.hex }} />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
 
           <EngraveControl
