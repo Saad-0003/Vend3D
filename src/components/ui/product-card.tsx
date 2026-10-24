@@ -5,17 +5,28 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Star } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 import { cn } from "@/lib/utils";
+import { getProductConfig } from "@/lib/products/config";
 
 /** EASE from `components/home/motion.ts`. */
 const EASE = [0.22, 1, 0.36, 1] as const;
+
+/**
+ * Warm the HTTP cache for the product's GLB on hover/focus, so the studio's
+ * first render has the bytes without a navigation stall. Deliberately a plain
+ * `fetch` instead of drei's `useGLTF.preload`: that would pull three.js into
+ * the shared storefront bundle (AGENTS §6.5) for a browser cache entry.
+ */
+const prefetchedModels = new Set<string>();
+
+function prefetchModel(productId: string) {
+  const path = getProductConfig(productId)?.model.glb;
+  if (!path || prefetchedModels.has(path)) return;
+  prefetchedModels.add(path);
+  void fetch(path).catch(() => {});
+}
 
 export type ProductCardProduct = {
   id: string;
@@ -80,7 +91,12 @@ export function ProductCard({
         className,
       )}
     >
-      <Link href={href ?? `/products/${product.id}`} className="block" aria-label={product.name}>
+      <Link
+        href={href ?? `/products/${product.id}`}
+        className="block"
+        aria-label={product.name}
+        onPointerEnter={() => prefetchModel(product.id)}
+      >
         <div className="relative aspect-[4/5] w-full overflow-hidden bg-[var(--surface-2)]">
           <div
             aria-hidden
@@ -118,10 +134,7 @@ export function ProductCard({
           </span>
         </div>
         <TooltipProvider delayDuration={120}>
-          <ul
-            aria-label={`${product.name} colorways`}
-            className="mt-auto flex items-center gap-2"
-          >
+          <ul aria-label={`${product.name} colorways`} className="mt-auto flex items-center gap-2">
             {product.colorways.map((c, i) => (
               <li key={c.name}>
                 <Tooltip>

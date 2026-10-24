@@ -25,8 +25,7 @@ import { getConfiguratorStore, selectTotalCents } from "@/stores/configurator-st
 import { useCartStore } from "@/stores/cart-store";
 import { useDesignsStore } from "@/stores/designs-store";
 
-/** Auto-rotate resumes this long after the last orbit interaction. */
-const AUTO_ROTATE_RESUME_MS = 4_000;
+/** Auto-rotate is opt-in: the toolbar button starts it, orbiting pauses it. */
 
 /**
  * The studio screen. One component for every product: the stage, the sidebar,
@@ -72,12 +71,12 @@ function StudioProduct({ product, catalog }: { product: ProductConfig; catalog: 
   const reset = store((s) => s.reset);
 
   const configuration = history.present;
-  const modelState = useModelSource(product.model.glb);
+  // GLBs are bundled assets: the source is known at build time, not probed.
+  const modelState = useModelSource();
   const source = modelState === "checking" ? null : modelState;
-  const [autoRotate, setAutoRotate] = useState(true);
+  const [autoRotate, setAutoRotate] = useState(false);
   const [decalUrl, setDecalUrl] = useState<string | null>(null);
   const handle = useRef<CanvasHandle | null>(null);
-  const idleTimer = useRef<number | null>(null);
 
   const totalCents = selectTotalCents(product, quantity);
   const rating = catalog.find((p) => p.id === product.slug)?.rating ?? 5;
@@ -105,17 +104,10 @@ function StudioProduct({ product, catalog }: { product: ProductConfig; catalog: 
     setDecalUrl(getDecalAsset(product.slug)?.url ?? null);
   }, [product.slug, configuration.decal]);
 
-  useEffect(() => {
-    return () => {
-      if (idleTimer.current) window.clearTimeout(idleTimer.current);
-    };
-  }, []);
-
-  // Stops auto-rotate on any orbit and resumes it after the idle window.
+  // The model is static by default; orbiting pauses a rotation the shopper
+  // started with the toolbar button. It never restarts on its own.
   function handleInteract() {
     setAutoRotate(false);
-    if (idleTimer.current) window.clearTimeout(idleTimer.current);
-    idleTimer.current = window.setTimeout(() => setAutoRotate(true), AUTO_ROTATE_RESUME_MS);
   }
 
   function handleAddToCart() {

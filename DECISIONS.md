@@ -961,3 +961,196 @@ which AGENTS.md forbids, so the contract is proven in `tests/unit/route-skeleton
 it is deterministic. Also rejected: adding a `role="alert"` beside `ErrorState`'s own (it double-
 announces), and a second shimmer animation on `Skeleton` — the house primitive is the documented
 `animate-pulse` (DESIGN.md §5), so "shimmer, no spinners" is satisfied by reusing it.
+### D-059 · Real GLB filenames `{bottle, cap, shirt, mug}.glb` (not `{slug}.glb`)
+
+**What:** the four baked models ship as `public/models/bottle.glb`, `cap.glb`, `shirt.glb`,
+`mug.glb` + `public/models/CREDITS.md`; `ProductConfig.model.glb` points at those literal names.
+**Why:** the mega-task spec fixed the filenames; architecture.md's `{slug}.glb` naming
+(`heavyweight-boxy-tee.glb`) was the alternative.
+**Alternatives rejected:** renaming to `{slug}.glb` (touches the brief); dual aliases (dead weight).
+
+### D-060 · Model sources: Poly by Google (CC BY 3.0) ×3 + MilkAndBanana (CC0)
+
+**What:** bottle `dm0ZTuKAs45`, cap `aaC5GgcWEhM`, tee `bdOMzzh-fSl` (Poly by Google, CC BY 3.0);
+mug `54cOZNS04L` (MilkAndBanana, CC0 1.0). Credits live in `CREDITS.md`, the hero shows an
+attribution chip and the studio stage an attribution link (required for CC BY).
+**Why:** free, no Draco/meshopt needed, materials baked into the GLBs, and all four ship
+separable meshes matching `PartConfig.meshNames` (body/lid/trim, crown/brim, body, body/handle).
+**Alternatives rejected:** Sketchfab/fab downloads (licence terms vary); paid libraries.
+
+### D-061 · No mesh compression for the four models
+
+**What:** GLBs ship as plain glTF-binary (10–35 KB each), no Draco/meshopt, no texture repack.
+**Why:** every file is far below the 200 KB budget already; compression adds a decoder to the
+bundle which the budget does not justify for four tiny meshes.
+**Alternatives rejected:** Draco/meshopt pipelines (`optimize:models`) — kept for future heavy assets.
+
+### D-062 · Studio loads GLBs with a manual fetch + `GLTFLoader.parse`, not `useLoader`
+
+**What:** `GlbModelInner` owns the load: `fetch(url, { cache: "no-store" })` → `loader.parse()`
+with a 20 s watchdog; hooks stay unconditional (`useMemo` before any early return); a failed or
+timed-out load throws into `GlbErrorBoundary` → placeholder.
+**Why:** r3f v9's `useLoader` suspense cache aborts an entry when its boundary unmounts
+mid-flight (StrictMode remounts do exactly that), leaving a forever-suspended component — a
+blank stage with no error. A local load owns its lifecycle and surfaces failures.
+**Alternatives rejected:** drei `useGLTF.preload` (same cache); disabling StrictMode (global).
+
+### D-063 · The studio GLB request bypasses the HTTP cache
+
+**What:** both the model `GET` (`cache: "no-store"`) and the `HEAD` probe in `useModelSource`
+skip the HTTP cache.
+**Why:** during verification the app's own GET arrived with an empty body or hung against the
+dev server's `public, max-age=0` + ETag revalidation when a HEAD for the same URL had warmed an
+entry; production serves cleanly but `no-store` on a ≤35 KB one-shot fetch costs nothing.
+**Alternatives rejected:** `headers()` cache rules in `next.config.ts` (wider blast radius);
+keeping default caching (reproduced again on the second dev cold start).
+
+### D-064 · Models centre on the origin; the shell sets scale, not multiplies
+
+**What:** `ModelShell` fit now centres the mid-box on the origin (the old `min.y` floor-rest is
+gone) and uses `setScalar(fit)` instead of `multiplyScalar`.
+**Why:** the placeholder geometry (and the decal anchors, ContactShadows plane at `y = -1.15`
+and camera presets) is authored for a model centred at the origin; floor-resting pushed the top
+half of every real model out of frame and left it floating above its shadow. `setScalar` keeps
+the fit idempotent under StrictMode's double-invoke of layout effects in dev.
+**Alternatives rejected:** retuning the four camera presets (re-scaling per product instead
+reuses the existing `model.scale` lever); leaving the fit as-is (models clipped).
+
+### D-065 · Per-product `model.scale`: tee 0.9, mug 0.8, cap 1.3
+
+**What:** config values tuned so each product composes with its own camera preset distances.
+**Why:** the shell normalises the longest side to 2.2, but framing depends on each preset's
+distance; the mug (wide + close cameras) overflowed, the cap's source bounding box far exceeds
+its visual extent so it under-sized.
+**Alternatives rejected:** one global target size (can't fit all four cameras); moving presets.
+
+### D-066 · Product-card preload via plain `fetch`, not `useGLTF.preload`
+
+**What:** hovering a product card warms the browser cache with a module-level `prefetchedModels`
+`fetch()` instead of drei's `useGLTF.preload`.
+**Why:** drei's preload imports the three.js module graph into the shared storefront bundle —
+the exact leak AGENTS §6.5 forbids; a fetch warms only the HTTP cache.
+**Alternatives rejected:** `next/dynamic` at the card level (heavier island).
+
+### D-067 · The 3D spec runs Chromium-only and hard against pixels
+
+**What:** `tests/e2e/three-d.spec.ts` pins `browserName: "chromium"` with
+`--enable-unsafe-swiftshader`; the studio test reads the last WebGL frame via `readPixels`
+(`preserveDrawingBuffer` is on) and demands ≥2 % opaque coverage per product.
+**Why:** headless WebKit WebGL is unreliable in CI drivers, and DOM-only assertions passed a
+known blank-stage failure mode; pixel coverage is the contract.
+**Alternatives rejected:** asserting the store's `onReady` flag (indirect); permanent
+triage-free retries (AGENTS: retries only in CI).
+
+### D-068 · Vitest renders an empty inline PostCSS pipeline
+
+**What:** `vitest.config.mts` sets `css: { postcss: { plugins: [] } }`.
+**Why:** with the consumer CSS imported by the landing page, Vitest ran `.css` files through
+the project PostCSS config and crashed on a plugin ("Invalid PostCSS Plugin at plugins[0]"),
+an unrelated pre-existing failure that blocked the whole unit suite; JS-less CSS processing
+keeps the module graph intact for component tests.
+**Alternatives rejected:** altering `postcss.config.mjs` (consumer-facing); dropping the CSS
+import (weakens the test).
+
+### D-069 · Hero bottle: full pointer orbit, click-to-cycle colourways, circles removed
+
+**What:** the hero bottle now orbits on drag in both axes — yaw (inertia preserved) plus a
+clamped pitch (`±0.95 rad`, OrbitControls direction: drag down brings the camera above) — and
+a no-movement click on the bottle advances the colourway, which re-tints the `body` mesh via a
+300 ms material tween. The disabled row of swatch circles under the visual is gone; a small
+"Drag to orbit · Click to try <name>" hint sits below the visual instead.
+**Why:** the circles were dead UI (disabled buttons), and the brief asked for a real 360 view
+from above/below plus working colours — clicking the object is the discoverable interaction.
+**Alternatives rejected:** keeping working circles (the brief said remove); unclamped pitch
+(the bottle would flip upside down); recolouring lid/trim too (loses the authored identity).
+
+### D-070 · Module-level caches so the studio survives StrictMode remounts
+
+**What:** `loadGlb` memoises the fetch+parse promise per GLB URL (failures evict), the resolved
+source answer is memoised per path in `useModelSource`, and `ProductCanvas` keeps its WebGL
+verdict and fade state at module scope so remounts resume exactly where the first mount left.
+**Why:** in dev StrictMode tears the whole screen down and re-mounts it: the old code reset to
+"checking" (canvas unmounts — the model visibly disappears) and refetched the GLB, a request
+that can wedge against the dev static pipeline, leaving a permanently blank stage. The caches
+make the remount reuse the resolved answer and already-parsed scene with no repaint.
+**Alternatives rejected:** disabling StrictMode globally (masks real dev-time issues); passing
+state down from the screen (spreads the cache across the component tree and still repaints).
+
+### D-071 · Three-step artboard size trimmed
+
+**What:** `--board-size` in `process.module.css` reduced from `min(42vw, 520px, 100svh-252px)`
+to `min(37vw, 460px, 100svh-280px)`; the reduced-motion fallback height matches.
+**Why:** the palette nearly touched the viewport borders at common desktop sizes. Purely
+dimensional — the artboard artwork, keyframes and scroll animation are untouched.
+**Alternatives rejected:** adding page-edge padding (changes the whole section's rhythm).
+
+### D-072 - GLB assets move into `src/assets/models` and are bundled
+
+**What:** the four GLBs moved from `public/models/` to `src/assets/models/` and are imported as
+module assets (`import bottleGlb from "@/assets/models/bottle.glb"`). `next.config.ts` gains an
+`asset/resource` rule emitting `static/media/[name].[hash][ext]`, `src/types/glb.d.ts` types the
+import, and `vitest.config.mts` sets `assetsInclude: ["**/*.glb"]` so unit tests can import the
+product config. `public/models/CREDITS.md` stays where it is as the licence document.
+
+**Why:** serving the GLBs from `public/` made the dev static pipeline part of the load path; the
+hashed, build-time asset URLs remove that variable entirely and give immutable caching in prod.
+
+**Alternatives rejected:** keeping `public/models/*.glb` (dev static server flakiness); inlining
+the GLBs as base64 data URLs (they would land in the JS bundle four times over).
+
+### D-073 - Module-init GLB prefetch; PMREM bake could wedge a pending fetch
+
+**What:** `product-model.tsx` kicks off `loadGlbEntry()` for every product config at studio chunk
+evaluation (`if (typeof window !== "undefined")`), before any canvas exists. The studio loader also
+grew a render-time suspense over a module-level entry cache with a 20 s watchdog.
+
+**Why:** the blank stage had a specific cause, isolated with a throwaway `/debug-glb` page: a GLB
+`fetch` that starts or settles while `StudioEnvironment` synchronously bakes
+`PMREMGenerator.fromScene` never resolves its promise, even though the network layer has delivered
+the full 200 body. The prefetch finishes before the first bake, so the bake can no longer race a
+live request. The debug page and probe scripts were deleted once the fix was proven in dev and prod.
+
+**Alternatives rejected:** replacing the PMREM bake with a downloaded HDRI (new binary asset, worse
+first paint); moving the bake after the model mounts (the environment would pop in late).
+
+### D-074 - Hero: true 360 orbit, adaptive studio zoom bounds
+
+**What:** the hero bottle uses drei `OrbitControls` with free yaw, pitch clamped to
+`[0.2, PI-0.2]`, auto-rotate at 2.73 (one revolution every ~22 s) that pauses while dragging,
+no zoom/pan, and `reset()` on double click; a sub-6 px press still advances the colourway. The
+studio derives its zoom limits from the canvas: `fitScale = clamp(min(w,h)/790, 0.6, 1.25)`,
+`minDistance = preset*0.5*fitScale`, `maxDistance = max(preset*2*fitScale, preset*1.2)`.
+
+**Why:** dragging shipped as a 180-degree tilt only; users asked for a full 360 spin in place and
+for zoom that tracks the stage size rather than a fixed camera distance.
+
+**Alternatives rejected:** hand-rolled spherical math (drei's controls already handle inertia and
+touch); fixed zoom bounds (over-zoom on phones, under-zoom on wide screens).
+
+### D-075 - Studio round 2: section order, engraving colour/fonts, finish range, static model
+
+**What:**
+- Section chips read Colour, Finish, Engrave, Decal, Options, Details and wrap onto a second row
+  instead of scrolling horizontally (the last chip used to clip under the card edge).
+- Engraving gained a `color` field (zod `.default("#f2f0eb")`, so saved designs stay valid) with a
+  six-swatch palette, a live text preview, and real 3D output: the text is drawn into a transparent
+  canvas texture in the chosen font/colour and projected onto the part's front decal zone, sunk by
+  `depthMm`.
+- The finish control maps its whole track onto the part's `glossRange` (the mug's 60-100 previously
+  left half the bar dead) and drives `envMapIntensity` alongside roughness, so matte vs gloss reads
+  as a reflection change rather than a flat tint. The decorative sphere preview above the bar is
+  gone.
+- The studio model is static by default: auto-rotate is opt-in via the toolbar and orbiting simply
+  pauses it (the 4 s idle resume was removed).
+
+**Why:** the brief called out overlapping chips, wrong order, non-working engraving colour/fonts,
+a finish slider that did little, wasted vertical space and a model that never sat still.
+
+**Alternatives rejected:** true carved geometry for engraving (needs per-glyph CSG; a tinted
+projection is the honest preview for a laser etch); keeping the multi-part finish subranges but
+remapping only the label (the dead track half is the bug).
+
+### D-076 - `.tmp-*` ignored
+
+**What:** `.gitignore` ignores `.tmp-*`. **Why:** verification screenshots and one-off Playwright
+probes are written there and should never be staged.

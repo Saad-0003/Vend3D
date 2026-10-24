@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowRight, Star } from "lucide-react";
 import { ShimmerButton } from "@/components/ui/shimmer-button";
@@ -11,10 +12,16 @@ import { CategoryStrip } from "@/components/home/category-strip";
 import { EASE } from "@/components/home/motion";
 import { scrollToSection } from "@/lib/lenis";
 
+// three.js lives in its own chunk (AGENTS §6.5): loaded client-side only, over
+// the poster PNG, which stays server-rendered so the LCP image never waits.
+const HeroModel = dynamic(() => import("@/components/home/hero-model").then((m) => m.HeroModel), {
+  ssr: false,
+});
+
 const headlineLines = ["See it. Shape it.", "Own it."];
 
-// Colourways kept for the future 3D-model drop-in. Disabled on the home page
-// for now (no live card to drive), but the data + markup stay in place.
+// Colourways for the hero bottle: a plain click on the bottle applies the next
+// one to its body (the row of swatch circles was removed).
 const swatches = [
   { name: "Signal Lime", color: "#c6f135" },
   { name: "Ivory", color: "#f3f0e8" },
@@ -33,6 +40,7 @@ const avatars = [
 export function Hero() {
   const reduced = useReducedMotion();
   const [active, setActive] = useState(0);
+  const [modelReady, setModelReady] = useState(false);
 
   return (
     // Height is tuned so the first row of products peeks above the fold at
@@ -47,9 +55,9 @@ export function Hero() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, ease: EASE }}
-            className="lux-eyebrow text-[var(--muted)] inline-flex items-center gap-2 rounded-full bg-white/[0.04] px-3.5 py-1.5 ring-1 ring-[var(--hairline)]"
+            className="lux-eyebrow inline-flex items-center gap-2 rounded-full bg-white/[0.04] px-3.5 py-1.5 text-[var(--muted)] ring-1 ring-[var(--hairline)]"
           >
-            <span className="bg-[var(--lime)] size-1.5 rounded-full" />
+            <span className="size-1.5 rounded-full bg-[var(--lime)]" />
             Next-gen realtime 3D studio
           </motion.span>
 
@@ -57,7 +65,9 @@ export function Hero() {
             {headlineLines.map((line, i) => (
               <span key={line} className="block overflow-hidden">
                 <motion.span
-                  className={line === "Own it." ? "inline-block text-[var(--lime)]" : "inline-block"}
+                  className={
+                    line === "Own it." ? "inline-block text-[var(--lime)]" : "inline-block"
+                  }
                   // `initial` must not branch on the reduced-motion preference: the
                   // server cannot resolve it, so a reduced-motion client hydrates with
                   // a different style, React drops the subtree, and the hero's CTA
@@ -153,13 +163,12 @@ export function Hero() {
                 </motion.span>
               ))}
             </div>
-            <span className="lux-tabular text-[var(--ivory)] text-[15px]">
+            <span className="lux-tabular text-[15px] text-[var(--ivory)]">
               <NumberTicker value={4.9} decimalPlaces={1} />
             </span>
             <span className="text-[14px] text-[var(--muted)]">from 2,000+ makers</span>
           </motion.div>
         </div>
-
 
         {/* Visual column — a simple, borderless product shot. This is the drop-in
             slot for the future real-time 3D bottle model (no card, ring, or stage). */}
@@ -187,26 +196,26 @@ export function Hero() {
               fill
               priority
               sizes="(max-width: 1024px) 90vw, 440px"
-              className="object-contain drop-shadow-[0_40px_50px_rgba(0,0,0,0.5)]"
+              className={`object-contain drop-shadow-[0_40px_50px_rgba(0,0,0,0.5)] transition-opacity duration-700 ${
+                modelReady ? "opacity-0" : "opacity-100"
+              }`}
             />
+            <HeroModel
+              onLoaded={() => setModelReady(true)}
+              color={swatches[active]?.color ?? "#c6f135"}
+              onCycleColor={() => setActive((i) => (i + 1) % swatches.length)}
+            />
+            {/* Attribution for the baked CC BY model (public/models/CREDITS.md). */}
+            <span className="lux-mono absolute right-2 bottom-2 rounded-full bg-black/40 px-2 py-0.5 text-[9px] tracking-[0.14em] text-[var(--faint)] uppercase backdrop-blur">
+              Bottle model · Poly by Google · CC BY 3.0
+            </span>
           </motion.div>
 
-          {/* Colourways — preserved for the future model, disabled for now. */}
-          <ul aria-label="Available colorways" className="flex items-center gap-3">
-            {swatches.map((s, i) => (
-              <li key={s.name}>
-                <button
-                  type="button"
-                  aria-label={s.name}
-                  aria-pressed={active === i}
-                  disabled
-                  onClick={() => setActive(i)}
-                  className="relative block size-6 cursor-not-allowed rounded-full opacity-40 ring-1 ring-[var(--hairline-strong)]"
-                  style={{ backgroundColor: s.color }}
-                />
-              </li>
-            ))}
-          </ul>
+          {/* Colourway hint — the swatch circles were removed; a plain click on
+              the bottle cycles them, so the current colour stays discoverable. */}
+          <p className="lux-mono text-center text-[10px] tracking-[0.16em] text-[var(--muted)] uppercase">
+            Drag to orbit · Click to try {swatches[(active + 1) % swatches.length]?.name}
+          </p>
         </motion.div>
       </div>
 
@@ -216,4 +225,3 @@ export function Hero() {
     </section>
   );
 }
-

@@ -1,8 +1,18 @@
 import { products, type Product } from "@/lib/catalog";
+import bottleGlb from "@/assets/models/bottle.glb";
+import capGlb from "@/assets/models/cap.glb";
+import mugGlb from "@/assets/models/mug.glb";
+import shirtGlb from "@/assets/models/shirt.glb";
 
 /**
  * One entry per product. The Studio screen renders every section from this
  * object and never branches on the slug, so adding a product is a data change.
+ *
+ * GLBs are bundled, hashed static assets (next.config.ts `asset/resource`):
+ * the model URL is a build-time constant, so the studio never has to probe
+ * whether the file exists in /public — the source it renders is always the
+ * real mesh, and a broken or malformed file falls back to the placeholder via
+ * the component's error boundary.
  *
  * Coordinates (`anchor.position`, `camera` presets) are in the model's own
  * units before the engine auto-fits it to the stage floor. A real GLB exported
@@ -41,6 +51,19 @@ export type DecalZone = {
 export type EngraveFont = { id: string; label: string; css: string };
 export type EngraveZone = { id: string; label: string; partId: string };
 
+/**
+ * Fill colours offered for engraved text. Engraving renders as a tinted etch
+ * on the part's front zone, so these read as "ink" colours rather than metals.
+ */
+export const ENGRAVE_COLORS: SwatchDef[] = [
+  { name: "Ivory", hex: "#f2f0eb" },
+  { name: "Graphite", hex: "#1b1b1d" },
+  { name: "Brass", hex: "#c9a25e" },
+  { name: "Lime", hex: "#c6f135" },
+  { name: "Coral", hex: "#f43f5e" },
+  { name: "Sky", hex: "#22d3ee" },
+];
+
 export type ExtraOption = { value: string; label: string };
 export type ExtraConfig = {
   id: string;
@@ -63,6 +86,8 @@ export type ProductConfig = {
     cameraPresets: Record<CameraPresetKey, Vec3>;
     autoRotateSpeed: number;
     environment: "studio";
+    /** Source attribution shown under the stage when the model is not CC0. */
+    credit?: { label: string; url: string };
   };
   parts: PartConfig[];
   decal: { enabled: boolean; zones: DecalZone[] };
@@ -98,8 +123,10 @@ const teeConfig: ProductConfig = {
   category: tee.category,
   placeholder: "tee",
   model: {
-    glb: "/models/heavyweight-boxy-tee.glb",
-    scale: 1,
+    glb: shirtGlb,
+    // Per-product fit multiplier (model shell normalises the longest side to
+    // 2.2); tuned so each product composes with its own camera presets.
+    scale: 0.9,
     cameraPresets: {
       front: [0, 0.3, 4],
       back: [0, 0.3, -4],
@@ -108,6 +135,10 @@ const teeConfig: ProductConfig = {
     },
     autoRotateSpeed: 1.2,
     environment: "studio",
+    credit: {
+      label: "T-shirt model — Poly by Google · CC BY 3.0",
+      url: "https://poly.pizza/m/bdOMzzh-fSl",
+    },
   },
   parts: [
     {
@@ -171,8 +202,10 @@ const mugConfig: ProductConfig = {
   category: mug.category,
   placeholder: "mug",
   model: {
-    glb: "/models/luna-glazed-mug.glb",
-    scale: 1,
+    glb: mugGlb,
+    // Mug is 2.2 wide (body + handle) and its front preset is close (z 3.6):
+    // 0.8 keeps body + handle inside the frame.
+    scale: 0.8,
     cameraPresets: {
       front: [0, 0.2, 3.6],
       back: [0, 0.2, -3.6],
@@ -181,6 +214,10 @@ const mugConfig: ProductConfig = {
     },
     autoRotateSpeed: 1,
     environment: "studio",
+    credit: {
+      label: "Mug model — MilkAndBanana · CC0 1.0",
+      url: "https://poly.pizza/m/54cOZNS04L",
+    },
   },
   parts: [
     {
@@ -252,8 +289,10 @@ const capConfig: ProductConfig = {
   category: cap.category,
   placeholder: "cap",
   model: {
-    glb: "/models/structured-6-panel-cap.glb",
-    scale: 1,
+    glb: capGlb,
+    // The cap's bounding box far exceeds its visual extent (stray vertices in
+    // the source GLB), so the shell under-sizes it; 1.3 pulls it back to frame.
+    scale: 1.3,
     cameraPresets: {
       front: [0, 0.8, 3.2],
       back: [0, 0.8, -3.2],
@@ -262,6 +301,10 @@ const capConfig: ProductConfig = {
     },
     autoRotateSpeed: 1,
     environment: "studio",
+    credit: {
+      label: "Cap model — Poly by Google · CC BY 3.0",
+      url: "https://poly.pizza/m/aaC5GgcWEhM",
+    },
   },
   parts: [
     {
@@ -321,7 +364,7 @@ const bottleConfig: ProductConfig = {
   category: bottle.category,
   placeholder: "bottle",
   model: {
-    glb: "/models/insulated-steel-bottle.glb",
+    glb: bottleGlb,
     scale: 1,
     cameraPresets: {
       front: [0, 0.3, 4.2],
@@ -331,6 +374,10 @@ const bottleConfig: ProductConfig = {
     },
     autoRotateSpeed: 1,
     environment: "studio",
+    credit: {
+      label: "Bottle model — Poly by Google · CC BY 3.0",
+      url: "https://poly.pizza/m/dm0ZTuKAs45",
+    },
   },
   parts: [
     {

@@ -14,10 +14,20 @@ import type { ModelSource } from "@/components/studio/three/use-model-source";
 
 /** plan.md §Phase 5: cap device pixel ratio at 2 for the viewer. */
 const DPR: [number, number] = [1, 2];
-/** Auto-rotate resumes after this much idle time, per the studio spec. */
-export const AUTO_ROTATE_RESUME_MS = 4_000;
-const ZOOM_MIN = 2;
-const ZOOM_MAX = 8;
+/**
+ * Zoom bounds adapt to the stage (see zoomBounds below); the floor values are
+ * also safe defaults for canvases that report an extreme size.
+ */
+function zoomBounds(presetDistance: number, size: { width: number; height: number }) {
+  const fitScale = THREE.MathUtils.clamp(
+    Math.min(size.width, size.height) / 790,
+    0.6,
+    1.25,
+  );
+  const min = presetDistance * 0.5 * fitScale;
+  const max = Math.max(presetDistance * 2 * fitScale, presetDistance * 1.2);
+  return { min, max };
+}
 
 export type CanvasHandle = {
   reset: () => void;
@@ -32,6 +42,12 @@ export type CanvasHandle = {
  * parent drives camera actions through `handle`, and `onInteract` fires on
  * every user orbit so the parent can pause auto-rotate.
  */
+// Module-level so the StrictMode remount doesn't replay them: a remount that
+// restarted both states would fade the canvas out and probe again — the model
+// visibly disappears for a beat on every dev reload.
+let webglKnown: boolean | null = null;
+let canvasEverShown = false;
+
 export default function ProductCanvas({
   product,
   configuration,
@@ -51,11 +67,21 @@ export default function ProductCanvas({
   onInteract?: () => void;
   handle: MutableRefObject<CanvasHandle | null>;
 }) {
-  const [webgl, setWebgl] = useState<boolean | null>(null);
+  const [webgl, setWebgl] = useState<boolean | null>(() => webglKnown);
+  // Mount cross-fade: softens the swap when the route carries a new product.
+  const [shown, setShown] = useState(canvasEverShown);
 
   useEffect(() => {
-    const probe = document.createElement("canvas");
-    setWebgl(!!(probe.getContext("webgl2") || probe.getContext("webgl")));
+    if (webglKnown === null) {
+      const probe = document.createElement("canvas");
+      webglKnown = !!(probe.getContext("webgl2") || probe.getContext("webgl"));
+    }
+    setWebgl(webglKnown);
+    const id = requestAnimationFrame(() => {
+      canvasEverShown = true;
+      setShown(true);
+    });
+    return () => cancelAnimationFrame(id);
   }, []);
 
   if (webgl === null) return null;
@@ -71,36 +97,40 @@ export default function ProductCanvas({
   }
 
   return (
-    <Canvas
-      dpr={DPR}
-      camera={{ position: product.model.cameraPresets.front, fov: 35 }}
-      gl={{ antialias: true, alpha: true, preserveDrawingBuffer: true }}
-      onCreated={({ gl }) => {
-        gl.toneMapping = THREE.ACESFilmicToneMapping;
-        gl.outputColorSpace = THREE.SRGBColorSpace;
-      }}
+    <div
+      className={`size-full transition-opacity duration-500 ${shown ? "opacity-100" : "opacity-0"}`}
     >
-      <StudioEnvironment />
-      <ambientLight intensity={0.25} />
-      <directionalLight position={[3, 4, 2]} intensity={1.1} />
-      <directionalLight position={[-3, 2, -3]} intensity={0.5} color="#d7e7ff" />
-      <Suspense fallback={null}>
-        <ProductModel
+      <Canvas
+        dpr={DPR}
+        camera={{ position: product.model.cameraPresets.front, fov: 35 }}
+        gl={{ antialias: true, alpha: true, preserveDrawingBuffer: true }}
+        onCreated={({ gl }) => {
+          gl.toneMapping = THREE.ACESFilmicToneMapping;
+          gl.outputColorSpace = THREE.SRGBColorSpace;
+        }}
+      >
+        <StudioEnvironment />
+        <ambientLight intensity={0.25} />
+        <directionalLight position={[3, 4, 2]} intensity={1.1} />
+        <directionalLight position={[-3, 2, -3]} intensity={0.5} color="#d7e7ff" />
+        <Suspense fallback={null}>
+          <ProductModel
+            product={product}
+            configuration={configuration}
+            source={source}
+            decalUrl={decalUrl}
+            onReady={onReady}
+          />
+        </Suspense>
+        <ContactShadows position={[0, -1.15, 0]} opacity={0.5} scale={6} blur={2.4} far={3} />
+        <CameraRig
           product={product}
-          configuration={configuration}
-          source={source}
-          decalUrl={decalUrl}
-          onReady={onReady}
+          autoRotate={autoRotate}
+          onInteract={onInteract}
+          handle={handle}
         />
-      </Suspense>
-      <ContactShadows position={[0, -1.15, 0]} opacity={0.5} scale={6} blur={2.4} far={3} />
-      <CameraRig
-        product={product}
-        autoRotate={autoRotate}
-        onInteract={onInteract}
-        handle={handle}
-      />
-    </Canvas>
+      </Canvas>
+    </div>
   );
 }
 
@@ -130,8 +160,19 @@ function CameraRig({
 }) {
   const camera = useThree((s) => s.camera);
   const gl = useThree((s) => s.gl);
+  const size = useThree((s) => s.size);
   const controls = useRef<OrbitControlsImpl | null>(null);
   const motion = useRef<number | null>(null);
+
+  const presetDistance = useMemo(
+    () =>
+      new THREE.Vector3(...product.model.cameraPresets.front).length(),
+    [product.model.cameraPresets],
+  );
+  const bounds = useMemo(
+    () => zoomBounds(presetDistance, size),
+    [presetDistance, size],
+  );
 
   useEffect(() => {
     const cancelMotion = () => {
@@ -164,8 +205,8 @@ function CameraRig({
         const offset = camera.position.clone().sub(c.target);
         const dist = THREE.MathUtils.clamp(
           offset.length() * (direction === 1 ? 0.85 : 1.18),
-          ZOOM_MIN,
-          ZOOM_MAX,
+          bounds.min,
+          bounds.max,
         );
         glide(c.target.clone().add(offset.normalize().multiplyScalar(dist)), 300);
       },
@@ -176,7 +217,7 @@ function CameraRig({
       cancelMotion();
       handle.current = null;
     };
-  }, [camera, gl, handle, product.model.cameraPresets]);
+  }, [camera, gl, handle, product.model.cameraPresets, bounds]);
 
   return (
     <OrbitControls
@@ -185,8 +226,8 @@ function CameraRig({
       enablePan={false}
       enableDamping
       dampingFactor={0.08}
-      minDistance={ZOOM_MIN}
-      maxDistance={ZOOM_MAX}
+      minDistance={bounds.min}
+      maxDistance={bounds.max}
       minPolarAngle={Math.PI / 4}
       maxPolarAngle={Math.PI / 1.8}
       autoRotate={autoRotate}

@@ -20,8 +20,8 @@ export function sectionsFor(product: ProductConfig): SectionId[] {
   const sections: SectionId[] = [];
   if (product.parts.some((p) => p.allowCustomColor)) sections.push("colour");
   if (product.parts.some((p) => p.finishable)) sections.push("finish");
-  if (product.decal.enabled) sections.push("decal");
   if (product.engrave.enabled) sections.push("engrave");
+  if (product.decal.enabled) sections.push("decal");
   if (product.extras.length > 0) sections.push("options");
   sections.push("details");
   return sections;
