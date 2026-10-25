@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { FloatingField } from "@/components/auth/floating-field";
 import { InfoLink } from "@/components/info/info-blocks";
 import { signInSchema, signUpSchema, type SignInValues, type SignUpValues } from "@/lib/auth/schemas";
 import { sanitizeNext } from "@/lib/auth/next";
@@ -79,6 +79,16 @@ export function AuthForm({
         setServerError("An account with this email already exists. Try signing in.");
         return;
       }
+
+      // The mock has no mailbox, so sign-up still signs the shopper in right
+      // away — check-email is the honest "here is where a real one would wait"
+      // stop (plan.md Phase 1B U3, D-093). `next` rides along so the
+      // return-to-guarded-route contract survives the extra hop.
+      const params = new URLSearchParams({ email });
+      if (next) params.set("next", sanitizeNext(next));
+      router.push(`/auth/check-email?${params.toString()}`);
+      onSuccess?.();
+      return;
     } else {
       const { email, password } = values as SignInValues;
       const ok = await signIn({ email, password });
@@ -176,6 +186,21 @@ export function AuthForm({
         }
       />
 
+      {!isSignUp ? (
+        <>
+          {/* A plain anchor, not `next/link`, matching the auth pages' cross
+              links: the destination must be fully loaded for its own form. */}
+          <div className="-mt-2 flex justify-end">
+            <a
+              href="/forgot-password"
+              className="text-[12px] text-[var(--muted)] underline underline-offset-2 transition-colors hover:text-[var(--lime)]"
+            >
+              Forgot password?
+            </a>
+          </div>
+        </>
+      ) : null}
+
       {isSignUp ? (
         <FloatingField
           name="confirmPassword"
@@ -221,75 +246,6 @@ export function AuthForm({
         )}
       </Button>
     </form>
-  );
-}
-
-/**
- * Floating label: the label sits inside the field and lifts on focus or once
- * the input has content, using `:placeholder-shown` (so it needs a
- * whitespace placeholder). `htmlFor`/`id` keep it a real label, which is what
- * makes this keyboard- and screen-reader-accessible rather than decorative.
- */
-function FloatingField({
-  name,
-  label,
-  type = "text",
-  inputMode,
-  autoComplete,
-  register,
-  error,
-  hint,
-  trailing,
-}: {
-  name: "name" | "email" | "password" | "confirmPassword";
-  label: string;
-  type?: string;
-  inputMode?: "email" | "tel" | "numeric";
-  autoComplete?: string;
-  register: ReturnType<typeof useForm<SignInValues | SignUpValues>>["register"];
-  error?: string;
-  hint?: string;
-  trailing?: React.ReactNode;
-}) {
-  const id = useId();
-  const describedBy = error ? `${id}-error` : hint ? `${id}-hint` : undefined;
-
-  return (
-    <div className="flex flex-col gap-1.5">
-      <div className="relative">
-        <Input
-          {...register(name)}
-          id={id}
-          name={name}
-          type={type}
-          inputMode={inputMode}
-          autoComplete={autoComplete}
-          placeholder=" "
-          aria-invalid={error ? true : undefined}
-          aria-describedby={describedBy}
-          className={`h-13 peer rounded-[var(--inner-radius)] pt-4 pb-1.5 text-[15px] ${trailing ? "pr-12" : ""}`}
-        />
-        <label
-          htmlFor={id}
-          className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 px-1 text-[13px] text-[var(--muted)] transition-all duration-200 peer-focus:top-2.5 peer-focus:translate-y-0 peer-focus:text-[10px] peer-focus:tracking-[0.14em] peer-focus:uppercase peer-[:not(:placeholder-shown)]:top-2.5 peer-[:not(:placeholder-shown)]:translate-y-0 peer-[:not(:placeholder-shown)]:text-[10px] peer-[:not(:placeholder-shown)]:tracking-[0.14em] peer-[:not(:placeholder-shown)]:uppercase"
-        >
-          {label}
-        </label>
-        {trailing ? (
-          <span className="absolute top-1/2 right-2 -translate-y-1/2">{trailing}</span>
-        ) : null}
-      </div>
-
-      {error ? (
-        <p id={`${id}-error`} className="px-1 text-[12px] leading-[1.4] text-[var(--destructive)]">
-          {error}
-        </p>
-      ) : hint ? (
-        <p id={`${id}-hint`} className="px-1 text-[12px] leading-[1.4] text-[var(--muted)]">
-          {hint}
-        </p>
-      ) : null}
-    </div>
   );
 }
 

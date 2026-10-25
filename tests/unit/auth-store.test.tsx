@@ -17,7 +17,7 @@ const VALID = { email: "ayesha@example.com", password: "supersecret1", name: "Ay
 beforeEach(() => {
   localStorage.removeItem("vend3d-auth-user");
   localStorage.removeItem("vend3d-auth-accounts");
-  useAuthStore.setState({ user: null, hydrated: false, pending: false });
+  useAuthStore.setState({ user: null, hydrated: false, pending: false, expired: false });
 });
 
 describe("auth store", () => {
@@ -154,5 +154,38 @@ describe("auth store", () => {
 
     expect(useAuthStore.getState().hydrated).toBe(true);
     expect(useAuthStore.getState().user).toBeNull();
+    expect(useAuthStore.getState().expired).toBe(false);
+  });
+
+  it("flags an expired session instead of silently dropping to signed-out", async () => {
+    await act(async () => {
+      await useAuthStore.getState().signUp(VALID);
+    });
+
+    // Force expiry the same way the dev helper does, then hydrate as a reload would.
+    const user = JSON.parse(localStorage.getItem("vend3d-auth-user") ?? "{}");
+    localStorage.setItem(
+      "vend3d-auth-user",
+      JSON.stringify({ ...user, expiresAt: Date.now() - 1 }),
+    );
+    useAuthStore.setState({ user: null, hydrated: false, expired: false });
+    await act(async () => {
+      useAuthStore.getState().hydrate();
+    });
+
+    expect(useAuthStore.getState().hydrated).toBe(true);
+    expect(useAuthStore.getState().user).toBeNull();
+    expect(useAuthStore.getState().expired).toBe(true);
+  });
+
+  it("clears the expired flag when a fresh session is adopted", async () => {
+    useAuthStore.setState({ user: null, hydrated: true, expired: true });
+    // Sign-up creates the account and the fresh session in one go.
+    await act(async () => {
+      await useAuthStore.getState().signUp(VALID);
+    });
+
+    expect(useAuthStore.getState().expired).toBe(false);
+    expect(useAuthStore.getState().user?.email).toBe(VALID.email);
   });
 });

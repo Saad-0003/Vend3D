@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { AuthStage } from "@/components/auth/auth-stage";
 import { AuthForm } from "@/components/auth/auth-form";
+import { GoogleButton } from "@/components/auth/google-button";
 import { PageShell } from "@/components/ui/page-shell";
 
 export const metadata: Metadata = {
@@ -40,6 +41,13 @@ export default async function LoginPage({ searchParams }: { searchParams: Search
             </header>
 
             <AuthForm mode="signin" next={target} />
+
+            <div className="flex items-center gap-3" role="separator" aria-label="Or continue with">
+              <span className="h-px flex-1 bg-[var(--hairline)]" aria-hidden />
+              <span className="text-[11px] uppercase tracking-[0.14em] text-[var(--muted)]">or</span>
+              <span className="h-px flex-1 bg-[var(--hairline)]" aria-hidden />
+            </div>
+            <GoogleButton />
 
             <p className="text-center text-[13px] text-[var(--muted)]">
               No account yet?{" "}

@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  findAccountByEmail,
+  DEMO_ADMIN_ACCOUNT,
   displayNameFromEmail,
+  findAccountByEmail,
+  normalizeAccount,
   normalizeEmail,
   registerAccount,
+  withDemoAdmin,
   type StoredAccount,
 } from "@/lib/auth/accounts";
 import { DEFAULT_AUTH_NEXT, loginUrlWithNext, sanitizeNext } from "@/lib/auth/next";
@@ -80,7 +83,7 @@ describe("normalizeEmail", () => {
 });
 
 describe("findAccountByEmail", () => {
-  const accounts = [{ id: "u1", email: "ayesha@example.com", name: "Ayesha" }];
+  const accounts: StoredAccount[] = [{ id: "u1", email: "ayesha@example.com", name: "Ayesha", role: "user" }];
 
   it("matches case-insensitively", () => {
     expect(findAccountByEmail(accounts, "AYESHA@EXAMPLE.COM")?.id).toBe("u1");
@@ -99,14 +102,16 @@ describe("registerAccount", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.account).toEqual({ id: "u1", email: "ayesha@example.com", name: "Ayesha" });
+    // Self-service signups are always plain users; admins are seeded, never
+    // registered (D-093).
+    expect(result.account).toEqual({ id: "u1", email: "ayesha@example.com", name: "Ayesha", role: "user" });
     expect(result.accounts).toHaveLength(1);
     // The input array is untouched.
     expect(before).toHaveLength(0);
   });
 
   it("rejects an existing email without touching the list", () => {
-    const existing = [{ id: "u1", email: "ayesha@example.com", name: "Ayesha" }];
+    const existing: StoredAccount[] = [{ id: "u1", email: "ayesha@example.com", name: "Ayesha", role: "user" }];
     const result = registerAccount(existing, { email: "AYESHA@example.com", name: "Impostor" }, () => "u2");
 
     expect(result.ok).toBe(false);
@@ -128,6 +133,41 @@ describe("displayNameFromEmail", () => {
     expect(displayNameFromEmail("ayesha.khan-1@example.com")).toBe("ayesha khan 1");
     expect(displayNameFromEmail("___@example.com")).toBe("there");
     expect(displayNameFromEmail("@example.com")).toBe("there");
+  });
+});
+
+describe("normalizeAccount", () => {
+  it("backfills role for payloads persisted before the field existed", () => {
+    expect(normalizeAccount({ id: "u1", email: "a@b.co", name: "A" })).toEqual({
+      id: "u1",
+      email: "a@b.co",
+      name: "A",
+      role: "user",
+    });
+  });
+
+  it("keeps an explicit admin role", () => {
+    expect(normalizeAccount({ id: "u2", email: "a@b.co", role: "admin" })?.role).toBe("admin");
+  });
+
+  it("rejects shapes without an identity", () => {
+    expect(normalizeAccount(null)).toBeNull();
+    expect(normalizeAccount("nope")).toBeNull();
+    expect(normalizeAccount({ id: 42 })).toBeNull();
+    expect(normalizeAccount({ email: "a@b.co" })).toBeNull();
+  });
+});
+
+describe("withDemoAdmin", () => {
+  it("appends the labelled demo admin when missing", () => {
+    const seeded = withDemoAdmin([]);
+    expect(seeded).toHaveLength(1);
+    expect(seeded[0]).toEqual(DEMO_ADMIN_ACCOUNT);
+  });
+
+  it("never duplicates the demo admin", () => {
+    const already = [DEMO_ADMIN_ACCOUNT];
+    expect(withDemoAdmin(already)).toBe(already);
   });
 });
 

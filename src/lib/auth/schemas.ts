@@ -54,12 +54,27 @@ export const signUpSchema = z
 export type SignInValues = z.infer<typeof signInSchema>;
 export type SignUpValues = z.infer<typeof signUpSchema>;
 
-/** The domain types the whole auth surface speaks. */
+/** Requesting a reset only ever needs one address, validated the same way. */
+export const forgotPasswordSchema = z.object({ email: emailSchema });
+
+export type ForgotPasswordValues = z.infer<typeof forgotPasswordSchema>;
+
+/**
+ * The domain types the whole auth surface speaks.
+ *
+ * `role` exists so the mock (plan.md Phase 1B U3) can gate the client-side
+ * `RequireAdmin` guard and the navbar's Admin item. It is a display/prompt
+ * concern only: the *trusted* role check stays server-side (plan.md Phase 3's
+ * admin gate), and the demo admin account is plainly labelled as a mock (D-093).
+ */
+export type AuthRole = "user" | "admin";
+
 export type AuthUser = {
   id: string;
   email: string;
   /** Display name; derived from the email prefix when OAuth omits one (Phase 3). */
   name: string;
+  role: AuthRole;
 };
 
 export type SignInInput = { email: string; password: string };

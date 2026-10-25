@@ -17,7 +17,12 @@ const SLOW = { timeout: 20_000 };
 
 const USER = { name: "Ayesha Khan", email: "ayesha@example.com", password: "supersecret1" };
 
-/** Clicks through the signup tab with a valid account, from the navbar dialog. */
+/** Clicks through the signup tab with a valid account, from the navbar dialog.
+ *  A mock sign-up still signs the shopper in, but now lands on
+ *  /auth/check-email (plan.md Phase 1B U3) — the session is already usable.
+ *  The helper waits for *settled* landing content, not just a URL-bar flip:
+ *  WebKit reports a following `page.goto` as interrupted while the router's
+ *  soft push is still in flight. */
 async function signUpFromDialog(page: import("@playwright/test").Page) {
   await page.goto("/shop");
   await page.getByRole("button", { name: "Sign in" }).click();
@@ -29,6 +34,8 @@ async function signUpFromDialog(page: import("@playwright/test").Page) {
   await panel.getByLabel("Password", { exact: true }).fill(USER.password);
   await panel.getByLabel("Confirm password").fill(USER.password);
   await panel.getByRole("button", { name: "Create account" }).click();
+
+  await expect(page.getByRole("heading", { name: "Check your inbox" })).toBeVisible(SLOW);
 }
 
 /**
@@ -98,11 +105,15 @@ test.describe("authentication", () => {
     await expect(panel.getByLabel("Password", { exact: true })).toHaveAttribute("type", "password");
   });
 
-  test("signs up from the dialog, toasts, and shows the account menu", async ({ page }) => {
+  test("signs up from the dialog and lands on the check-email stop, signed in", async ({ page }) => {
     await signUpFromDialog(page);
 
-    // Toast + navbar switch to the signed-in menu.
+    // Toast + mock sign-up lands on /auth/check-email?email=… (Phase 1B U3),
+    // with the navbar already carrying the signed-in menu because the mock
+    // session is created at once (no mailbox to confirm against).
     await expect(page.getByText("Welcome back.")).toBeVisible(SLOW);
+    await expect(page).toHaveURL(/\/auth\/check-email\?email=/, SLOW);
+
     await page.getByRole("button", { name: "Account menu" }).click();
 
     const menu = page.locator("[data-slot=popover-content]");
@@ -125,21 +136,31 @@ test.describe("authentication", () => {
     await expect(page.getByRole("button", { name: "Sign in" })).toBeVisible(SLOW);
   });
 
-  test("a signed-out shopper is redirected to /login?next= and returns after", async ({ page }) => {
+  test("a signed-out shopper is redirected to /login?next= and returns after signing in", async ({ page }) => {
+    // Only hard navigation of this test: straight into a protected route while
+    // signed out. The account is pre-seeded (a fresh browser context means the
+    // mock registry is empty), so the return trip does not need the sign-up
+    // dance — walking it left a still-in-flight soft push that WebKit reports
+    // as interrupting the next `goto`. The `?next=` hand-off across the
+    // sign-up hop is covered in `auth-recovery.spec.ts`.
+    await page.addInitScript(() => {
+      localStorage.setItem(
+        "vend3d-auth-accounts",
+        JSON.stringify([
+          { id: "user-e2e", email: "ayesha@example.com", name: "Ayesha Khan", role: "user" },
+        ]),
+      );
+    });
+
     await page.goto("/account");
     await expect(page).toHaveURL("/login?next=%2Faccount", SLOW);
 
-    // The full login page links to sign-up and carries `?next=` through the
-    // hop, so creating an account still returns to the guarded route.
-    await page.getByRole("link", { name: "Create one" }).click();
-    await expect(page).toHaveURL("/signup?next=%2Faccount", SLOW);
-
-    await fillAuthForm(page, "signup", USER);
-    await page.getByRole("main").getByRole("button", { name: "Create account" }).click();
+    await fillAuthForm(page, "signin", { email: USER.email, password: USER.password });
+    await page.getByRole("main").getByRole("button", { name: "Sign in" }).click();
 
     await expect(page).toHaveURL(/\/account/, SLOW);
     // `/account` greets the shopper by first name (see `account.spec.ts`).
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(`Hi, ${USER.name.split(" ")[0]}.`);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(`Hi, Ayesha.`);
   });
 
   test("rejects an unknown email with a non-enumerating message", async ({ page }) => {
@@ -152,14 +173,18 @@ test.describe("authentication", () => {
     await expect(page.getByText("Incorrect email or password.").last()).toBeVisible(SLOW);
   });
 
-  test("refuses an unsafe ?next= target", async ({ page }) => {
+  test("sanitises an unsafe ?next= target before the check-email hop", async ({ page }) => {
     await page.goto("/signup");
     await fillAuthForm(page, "signup", USER);
     await page.getByRole("main").getByRole("button", { name: "Create account" }).click();
 
-    // An absolute URL would be sanitised away, never followed.
-    await expect(page).toHaveURL(/\/account/, SLOW);
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(`Hi, ${USER.name.split(" ")[0]}.`);
+    // An absolute attacker URL was sanitised to the default (/account), and the
+    // check-email stop carries only the sanitised value onward.
+    await expect(page).toHaveURL(/\/auth\/check-email\?email=[^&]+&next=%2Faccount/, SLOW);
+    await expect(page.getByRole("link", { name: "Back to sign in" })).toHaveAttribute(
+      "href",
+      "/login?next=%2Faccount",
+    );
   });
 
   test("the full pages render the split layout with the stage and the form", async ({ page }) => {
@@ -184,8 +209,9 @@ test.describe("authentication", () => {
     await fillAuthForm(page, "signup", USER);
     await page.getByRole("main").getByRole("button", { name: "Create account" }).click();
 
-    // Nowhere in the address bar, and the account was created.
-    await expect(page).toHaveURL(/\/account/, SLOW);
+    // The signup stop is now the demo check-email screen; nowhere in the
+    // address bar, and the account was created.
+    await expect(page).toHaveURL(/\/auth\/check-email\?email=/, SLOW);
     expect(page.url()).not.toContain("password");
     expect(page.url()).not.toContain(encodeURIComponent(USER.password));
   });
@@ -197,7 +223,7 @@ test.describe("authentication", () => {
 
     // Keyboard users must be able to submit without reaching for the button.
     await page.getByRole("main").getByLabel("Password", { exact: true }).press("Enter");
-    await expect(page).toHaveURL("/account", SLOW);
+    await expect(page).toHaveURL(/\/auth\/check-email\?email=/, SLOW);
     expect(page.url()).not.toContain("password");
   });
 

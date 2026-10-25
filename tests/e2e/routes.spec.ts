@@ -28,6 +28,11 @@ const routes = [
   "/privacy",
   "/terms",
   "/shipping-returns",
+  // Phase 1B U3's auth-adjacent screens. /forbidden and /auth/check-email are
+  // noindex pages, which is a metadata rule, not an HTTP status rule.
+  "/forbidden",
+  "/forgot-password",
+  "/auth/check-email",
 ];
 
 test.describe("route skeleton", () => {

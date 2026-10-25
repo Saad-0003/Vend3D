@@ -16,23 +16,34 @@ const USER = { name: "Ayesha Khan", email: "ayesha@example.com", password: "supe
 
 test.use({ reducedMotion: "reduce" });
 
-async function signUp(page: import("@playwright/test").Page) {
-  await page.goto("/shop");
-  await page.getByRole("button", { name: "Sign in" }).click();
-  await page.getByRole("tab", { name: "Create account" }).click();
-
-  const panel = page.getByRole("tabpanel");
-  await panel.getByLabel("Full name").fill(USER.name);
-  await panel.getByLabel("Email", { exact: true }).fill(USER.email);
-  await panel.getByLabel("Password", { exact: true }).fill(USER.password);
-  await panel.getByLabel("Confirm password").fill(USER.password);
-  await page.getByRole("button", { name: "Create account" }).click();
-  await expect(page.getByRole("button", { name: "Account menu" })).toBeVisible(SLOW);
-  // Let the shop's own client hydration settle before the next full navigation.
-  // Under `next dev`, WebKit treats the dev server's Fast Refresh full reload as
-  // an interrupt to the following `page.goto`; a production build (`next start`)
-  // has no such reload and runs this spec clean (DECISIONS.md D-084).
-  await expect(page.getByRole("list", { name: "Archive" })).toBeVisible(SLOW);
+/**
+ * Seeds the mock session directly (plan.md Phase 1B U3) instead of walking the
+ * sign-up UI. Sign-up now lands on `/auth/check-email` (D-093), so a UI-driven
+ * signup ends this spec on a page with no shop around it — and leaves a soft
+ * push in flight that WebKit reports as interrupting the following `goto`.
+ * Seeding keeps the spec's shape intact: land on `/shop` as the first
+ * navigation, settle, seed the cart once, then walk to the cart.
+ */
+function seedSession(page: import("@playwright/test").Page) {
+  return page.addInitScript(() => {
+    const name = "Ayesha Khan";
+    const email = "ayesha@example.com";
+    localStorage.setItem(
+      "vend3d-auth-accounts",
+      JSON.stringify([{ id: "user-e2e", email, name, role: "user" }]),
+    );
+    localStorage.setItem(
+      "vend3d-auth-user",
+      JSON.stringify({
+        id: "user-e2e",
+        email,
+        name,
+        role: "user",
+        // Mirrors `writeSession`'s payload shape; 24h ≈ the mock's TTL.
+        expiresAt: Date.now() + 24 * 60 * 60 * 1000,
+      }),
+    );
+  });
 }
 
 /** Writes the cart's persisted payload once; the next full load hydrates it. */
@@ -96,7 +107,9 @@ test.describe("order history", () => {
   test("a placed order is listed, opens, reorders and is reachable from every entry point", async ({
     page,
   }) => {
-    await signUp(page);
+    await seedSession(page);
+    await page.goto("/shop");
+    await expect(page.getByRole("list", { name: "Archive" })).toBeVisible(SLOW);
     await seedCartOnce(page);
     const orderId = await placeDemoOrder(page);
 

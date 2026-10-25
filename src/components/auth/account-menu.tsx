@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { LogOut, Package, Shapes, User } from "lucide-react";
+import { LogOut, Package, Shapes, Shield, User } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -61,6 +61,13 @@ export function AccountMenu({ children }: { children: React.ReactNode }) {
           <MenuItem href="/orders" icon={<Package className="size-4" strokeWidth={1.5} aria-hidden />}>
             Orders
           </MenuItem>
+          {/* Admin destination exists only for the mock admin role (D-093); the
+              placeholder page is U4+ work, but the gate itself is U3's. */}
+          {user?.role === "admin" ? (
+            <MenuItem href="/admin" icon={<Shield className="size-4" strokeWidth={1.5} aria-hidden />}>
+              Admin
+            </MenuItem>
+          ) : null}
         </ul>
 
         <div className="my-1 h-px bg-[var(--hairline)]" role="separator" />

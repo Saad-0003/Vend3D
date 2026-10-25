@@ -4,6 +4,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 
 import { AuthForm } from "@/components/auth/auth-form";
+import { GoogleButton } from "@/components/auth/google-button";
 import {
   Dialog,
   DialogContent,
@@ -69,6 +70,15 @@ export function AuthDialog({
           <TabsContent value="signup" className="flex flex-col gap-4">
             <AuthForm mode="signup" onSuccess={handleSuccess} submitLabel="Create account" />
           </TabsContent>
+
+          {/* One Google starter for both tabs — the dialog opens on the route
+              the shopper is on, so it lands wherever they came from. */}
+          <div className="flex items-center gap-3" role="separator" aria-label="Or continue with">
+            <span className="h-px flex-1 bg-[var(--hairline)]" aria-hidden />
+            <span className="text-[11px] uppercase tracking-[0.14em] text-[var(--muted)]">or</span>
+            <span className="h-px flex-1 bg-[var(--hairline)]" aria-hidden />
+          </div>
+          <GoogleButton />
         </Tabs>
 
         <p className="text-center text-[12px] text-[var(--muted)]">

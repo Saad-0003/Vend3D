@@ -1451,3 +1451,48 @@ behaviour.
 **Alternatives rejected:** forcing `browserName: "chromium"` for the whole studio spec (the brief
 asks for both engines); screenshot/pixel assertions for the toggle (the canvas width and
 `document.fullscreenElement` are the actual contract); retries (would hide real regressions).
+
+### D-093 - Auth-adjacent screens (U3): role is a UI flag, expiry is a mount-time decision
+
+**What:** Phase 1B U3 adds the missing auth surfaces against the mock service:
+`/forbidden`, `/forgot-password`, `/auth/check-email`, `SessionExpiredDialog`, `RequireAdmin`,
+and a disabled "Continue with Google" button. `AuthUser` gains `role: "user" | "admin"`; a demo
+admin (`admin@vend3d.demo`) is auto-seeded by the first mock `signIn`, and the `/admin`
+placeholder requires it.
+
+**Why / scope notes:**
+- **The demo admin is not security.** The mock AuthService has no real authn/authz; `role` is a
+  client-side UI flag and `RequireAdmin` a UX affordance. Real enforcement arrives with Supabase
+  (Phase 2 app auth, Phase 14 admin), per ARCHITECTURE.md §7 — never a role stored in
+  localStorage.
+- `/forbidden` is a 200, `noindex`, statically generated page: App Router cannot emit 403 from a
+  static route, and a 403 would require per-request rendering the MVP doesn't need.
+- **Session expiry is a decision at guard mount, not a timer.** The mock session carries a 24h
+  `expiresAt`; `getCurrentUser()` returns null once expired, and the pure `decideGuard()` in
+  `src/lib/auth/guards.ts` makes every expired-session path testable without jsdom's
+  non-configurable `location.replace` (redirect URLs themselves are pinned by e2e). Expired
+  sessions show `SessionExpiredDialog` and fall back to `/login?next=…` on dismissal instead of a
+  silent mid-action redirect. `forceSessionExpiry()` is a dev/test helper and a no-op in
+  production.
+- **Sign-up now lands on `/auth/check-email?email=…&next=…`** (previously `/account` - signing up
+  and being immediately signed in made "check your inbox" meaningless); `next` survives the hop.
+- `/forgot-password` deliberately never consults the account registry (non-enumeration) and
+  always shows the same "check your inbox" outcome, plus a visible "demo only - no email is
+  sent" notice. Resend is a 30s client cooldown with no service call.
+- **Store hydration is ordered:** `hydrate()` awaits `useAuthStore.persist.rehydrate()` first and
+  then lets `authService.getSessionState()` be the final word - the persisted snapshot can be
+  stale relative to the session payload's `expiresAt`. `AuthUser` itself carries no expiry.
+
+**Alternatives rejected:** redirecting expired sessions straight to `/login` (loses unsaved
+context and mid-flow work; the dialog names the state and offers the same destination);
+emitting `/forbidden` with a 403 status (impossible without dynamic rendering, and the page is
+content-free); wiring forgot-password to the mock account list (enumeration - the screen exists
+to prove the flow's shape before Supabase owns it); Google button hidden until Phase 2 (the
+disabled-with-tooltip state documents the real layout contract now, per U3).
+
+**Test structure:** unit tests pin the pure decision logic (`guards`, cooldown, service expiry, `RequireAdmin`
+branching, store hydrate ordering); e2e (`auth-recovery.spec.ts`) pins the flows - forgot-password
+walk, resend cooldown, non-admin → `/forbidden`, forced expiry → dialog → sign-in → return.
+`orders.spec.ts` seeds the session via `addInitScript` instead of walking the sign-up UI, because
+sign-up no longer lands on `/shop` and the in-flight soft push breaks the following `goto` on
+WebKit (same interruption class as D-084).
