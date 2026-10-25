@@ -1211,3 +1211,13 @@ saves only ~25 px at 360 px, so the line stays on phones too). At 360 px the sti
 tall; accepted, since the name, total, quantity and both actions must stay one tap away while the
 panel scrolls.
 
+
+### D-077 - plan.md revised to reflect the UI-first build
+
+**What:** `plan.md` was updated (commit 837693d) to document how the project is actually built: a new "Implementation Style (revised Oct 2026)" section under the title describing the UI-first vertical-slice approach (all data in static files or localStorage behind swap-ready seams - AuthService, catalog, cart, designs, orders, configurator - with the server half replacing seam implementations, never components); every checkbox re-checked, with phase 5's WebGL fallback, dispose-on-unmount, 20 s load timeout and corrupt-GLB error boundary re-ticked and 30 phase 3-9 lines tagged "(client-only)" or "(UI done, server pending)" instead of edited; a new Phase 1B (U1-U6: orders/route cleanup, studio completion, auth/session screens, admin shell, admin products, admin orders) inserted between Phase 1 and Phase 2 without renumbering, gating Phase 2; "Deviations to reconcile" lists added under Phases 1, 2, 3, 4, 9 and 11; and a Revised Build Order (1B -> 2 -> 3 -> 4 -> 7/8/9 -> 10 -> 11 -> 12 -> 13 -> 14). Checkbox totals moved from 29/185 to 33/191.
+
+**Why:** the plan's checkboxes lagged the shipped UI (only 29 ticked against a much larger client surface) and overstated the backend; unchecked-and-untouched server lines stay checked against the server, while the tags record exactly which half of each line exists. The plan text itself was left additively intact so nothing already agreed is reworded or renumbered.
+
+**Alternatives rejected:** editing existing plan lines in place (forbidden by the revision's rules; loses the original contract wording); marking server-pending work as fully done (would misstate Phase 2+ scope); leaving the plan stale (the next contributor would re-derive these facts from DECISIONS stories).
+
+**Note:** the "touch no other file" rule of the plan-revision prompt deferred this D-077 entry out of that commit; it is logged here before any further coding task so the rule "log every new decision" is restored.
