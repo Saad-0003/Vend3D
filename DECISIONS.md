@@ -1310,3 +1310,144 @@ transition in our code: nothing in the app pushes `/shop` on these paths (`Requi
 AGENTS.md §3, and it hides any genuine navigation regression); dropping WebKit from the config
 (loses the only Safari-engine signal). Use `npm run build` then `next start` for a full WebKit run;
 Chromium stays on the dev server for the fast loop.
+
+### D-085 - GLB load state is a pure registry; retries live in the loader
+
+**What:** `src/lib/studio/glb.ts` holds one state per GLB URL (`idle | loading | ready |
+failed`, bytes loaded, total, attempt). The loader streams the response body to report real
+byte progress, retries up to three attempts in total under a single 20s deadline, and aborts the
+in-flight request when the deadline expires (a task that ignores its signal is raced against the
+abort, so Suspense can never hang). Failure marks the URL failed; the stage keeps the existing
+placeholder mesh and the overlay adds the message and a manual `Try again`, which drops the
+parsed cache, resets the state and remounts the model subtree so its error boundary resets.
+The boundary's placeholder fallback deliberately does not call `onReady` - otherwise the
+placeholder would report the failed URL as ready and hide the message.
+
+**Why:** progress needs the response stream, not `arrayBuffer()`, and the state has to be
+readable by an HTML overlay while the loader lives inside the three chunk. Keeping the retry
+policy in a dependency-free module makes the attempt count, backoff and timeout unit-testable
+without WebGL.
+
+**Alternatives rejected:** tracking progress through `FileLoader` (its request/signal stack is
+what stalled in the field - see the loader comment); three retries after the first attempt
+(four loads for a broken asset; the brief says "after the third failure"); per-attempt 20s
+timeouts (would stretch the budget to a minute); an indeterminate bar only (the requirement is
+determinate, and Next serves a Content-Length for static assets).
+
+### D-086 - The load overlay, fullscreen and reset live at the stage layer
+
+**What:** the progress/failure overlay renders inside `product-canvas` (the lazy chunk), not in
+`studio-stage`, so reading load state never pulls three into the main bundle. Fullscreen targets
+the stage `<section>` rather than `documentElement`, keeps the toolbar available, follows
+`fullscreenchange` (so Esc and the OS update the icon), hides the button when
+`document.fullscreenEnabled`/`requestFullscreen` are missing, and forces `height: 100dvh` inline
+because the stage's Tailwind heights (`52svh` / `calc(100svh-108px)`) would otherwise win inside
+`:fullscreen`. Navigating away while fullscreen exits it first.
+
+**Why:** the canvas resizes through R3F's resize observer in both directions once the section
+changes size; using the section also keeps the toolbar/preset chips in the fullscreen view.
+
+**Alternatives rejected:** `documentElement` fullscreen (the rest of the page stays in view or the
+canvas is letterboxed); a `fullscreen:` Tailwind variant (the arbitrary height utilities still
+apply and need `!important`); local `esc` key handling (the browser already owns Esc, and
+synthesising it would fight the API on Safari).
+
+### D-087 - Reset confirms only when the configuration is not the default
+
+**What:** the toolbar's reset still resets the camera and commits the default configuration, but
+it opens an AlertDialog ("Reset all changes?") only when `isConfigurationDefault` is false. At the
+defaults it resets straight away, because there is no design to lose. The reset stays a history
+commit, so Undo brings the previous configuration back.
+
+**Why:** matches the brief's "only when the configuration differs from the default" and avoids
+nagging on a stage the shopper only orbited.
+
+**Alternatives rejected:** always confirming (nags); never confirming (silently discards a decal
+and engraving); making the reset non-undoable (a destructive action behind a confirm is the worst
+of both).
+
+### D-088 - Unsaved-changes guard: baseline, interception, and its limits
+
+**What:** the guard compares the live configuration with a baseline: the saved design restored
+via `?design` (or the cart line via `?line`), otherwise the product defaults, with `?color`
+applied in both cases - so a restored session's unsaved work is still flagged, and picking a
+colour on a shop card is not. Dirty state adds a `beforeunload` prompt and a capture-phase click
+listener that holds same-origin link navigations and opens an AlertDialog with
+`Save design` / `Leave` / `Stay`. `Save design` opens the footer's existing save popover (scrolled
+into view after the dialog unlocks the page) and, once saved, finishes the navigation; `Stay`
+clears the pending href. Saving and adding to cart both set the baseline to the current
+configuration, which clears the guard. Modified clicks (new tab), downloads and external links are
+left to the browser.
+
+**Why:** every in-app exit in this app is an anchor (navbar, footer, breadcrumb, card links), so a
+click listener covers the requirement without a router-level dependency. The baseline is the
+saved/default design, not the persisted working copy, exactly as the brief states.
+
+**Not covered:** browser Back/Forward between App Router routes. Next 15 exposes no navigation
+guard for the App Router; intercepting `popstate` requires duplicating history entries and breaks
+with multiple guards. The tab-close/reload case is covered by `beforeunload`.
+
+**Alternatives rejected:** `next/navigation` `useBeforeUnload`-style hacks (no interception API
+exists); a full-screen "unsaved" banner (the studio has no room for it and it is not a gate);
+saving under "Untitled design" from the dialog (silently names the shopper's work); a second save
+form inside the dialog (two save flows to keep in sync).
+
+### D-089 - Numeric decal fields use the contract limits from one place
+
+**What:** `DECAL_LIMITS` now feeds the v1 zod schema, the sliders and the new number fields
+(values and ranges unchanged). The number fields are text inputs with `inputMode="decimal"`,
+clamped to the range and rounded to the step; non-numeric or empty text never commits and reverts
+on blur. They write through the same `onChange` as the sliders, so the 3D scene and undo/redo stay
+in sync, and re-sync when the value changes elsewhere (slider, undo, restored design).
+
+**Why:** controlled `type="number"` inputs drop the value of an in-progress entry such as `0.`
+to `""`, which makes decimals impossible to type; `inputMode` still gives phones a numeric keypad.
+Clamping against the schema's own constants is the only way the UI cannot drift from the contract.
+
+**Alternatives rejected:** `type="number"` with uncontrolled drafts (resetting on external
+changes needs remounts); duplicating 0.3/1.5/-180/180 in the component (already drifted once when
+the schema changed); clamping a blank field to the floor (turning a typo into a silent edit).
+
+### D-090 - Multiple decals and multiple texts are deferred to a v2 contract
+
+**What:** the studio keeps one decal and one engraving text. Supporting several of each is
+recorded as post-Phase 1B work and is **not** stubbed in the UI.
+
+**Why:** `Configuration` v1 models `decal: DecalSettings | null` and `engrave: { text }`; multi
+slots need a new schema version, migration of saved designs and carts, new decal anchors and a
+zod union - a contract change this task explicitly excludes. Shipping hidden UI for it would
+promise a capability the store cannot persist.
+
+**Alternatives rejected:** an array under the existing v1 field (old saved designs would fail
+validation and the version bump rule would be broken); a client-only extra decal outside the
+configuration (would not survive save/cart/checkout).
+
+### D-091 - The studio route skeleton reserves the real mobile stage height
+
+**What:** `StageWithSidebarSkeleton` now reserves `h-[52svh]` on mobile instead of an `aspect-[4/5]`
+media box, matching `studio-stage`'s `max-lg:h-[52svh]`; `tests/unit/route-skeletons.test.tsx`
+asserts both the mobile and desktop heights and that the 4:5 box is gone.
+
+**Why:** the old placeholder was taller than the stage, so the panel below jumped upward when the
+route resolved. The height is intentional: 52svh is what the sticky stage uses on phones, and
+DESIGN.md rule 12 requires skeletons to reserve the same geometry as the screen they stand in for.
+
+**Alternatives rejected:** changing the stage to a 4:5 box (would make the phone stage much taller
+and push the customization panel off-screen); leaving the test as-is (it only pinned desktop).
+
+### D-092 - Studio e2e notes: SwiftShader flag, slow canvas sizing, WebKit on prod
+
+**What:** the Chromium project now passes `--enable-unsafe-swiftshader` (the flag three-d.spec
+already needed) and the fullscreen spec waits up to 15s for R3F's resize observer to size the
+canvas. Studio specs follow D-084: Chromium may run on `next dev`, WebKit against
+`next build` + `next start`. In headless Chromium `Escape` does not leave fullscreen, so that
+spec exits through the toggle button; WebKit presses `Escape` and asserts the icon/state follow.
+
+**Why:** without the flag, headless software WebGL intermittently mounts a canvas that never
+renders; under load the first resize can take several seconds, and a 5s wait produced a ~1-in-3
+false failure (18/18 passed after widening it). Both facts are driver artefacts, not product
+behaviour.
+
+**Alternatives rejected:** forcing `browserName: "chromium"` for the whole studio spec (the brief
+asks for both engines); screenshot/pixel assertions for the toggle (the canvas width and
+`document.fullscreenElement` are the actual contract); retries (would hide real regressions).

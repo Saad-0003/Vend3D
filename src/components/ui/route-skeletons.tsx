@@ -86,7 +86,9 @@ export function StageWithSidebarSkeleton({ className }: { className?: string }) 
     <div className={cn("flex flex-col gap-12 lg:gap-16", className)}>
       <Skeleton className="h-4 w-64 rounded-full" />
       <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-8">
-        <Skeleton className="aspect-[4/5] w-full rounded-[var(--card-radius)] lg:aspect-auto lg:h-[calc(100svh-108px)] lg:flex-1" />
+        {/* Mobile stage is `max-lg:h-[52svh]` in studio-stage (not a 4:5 box):
+            matching it here keeps the sidebar from jumping when the route lands. */}
+        <Skeleton className="h-[52svh] w-full rounded-[var(--card-radius)] lg:h-[calc(100svh-108px)] lg:flex-1" />
         <div className="flex w-full flex-col gap-4 lg:h-[calc(100svh-108px)] lg:w-[440px] lg:shrink-0 xl:w-[460px]">
           <Skeleton className="h-64 w-full rounded-[var(--card-radius)]" />
           <Skeleton className="h-64 w-full rounded-[var(--card-radius)]" />

@@ -95,6 +95,11 @@ describe("route skeletons", () => {
     const stage = container.querySelector(".lg\\:flex-1");
     expect(stage).not.toBeNull();
     expect(classesOf(stage)).toContain("lg:h-[calc(100svh-108px)]");
+    // On mobile the real stage is `max-lg:h-[52svh]`, so the placeholder has to
+    // reserve that height instead of a 4:5 media box: switching from the route
+    // skeleton to the studio must not move the panel below it.
+    expect(classesOf(stage)).toContain("h-[52svh]");
+    expect(classesOf(stage)).not.toContain("aspect-[4/5]");
 
     // The sidebar keeps its fixed width, matching the studio screen.
     const sidebar = container.querySelector(".lg\\:w-\\[440px\\]");

@@ -35,7 +35,16 @@ export default defineConfig({
     // No hard waitForTimeout in specs (agent.md §3).
   },
   projects: [
-    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
+    {
+      name: "chromium",
+      use: {
+        ...devices["Desktop Chrome"],
+        // Headless Chromium gates SwiftShader behind this flag in newer
+        // versions; without it the canvas intermittently mounts but never
+        // renders (see three-d.spec.ts, which sets the same flag).
+        launchOptions: { args: ["--enable-unsafe-swiftshader"] },
+      },
+    },
     { name: "webkit", use: { ...devices["Desktop Safari"] } },
   ],
   webServer: {

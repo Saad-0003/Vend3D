@@ -13,6 +13,7 @@ import { DetailsPanel } from "@/components/studio/studio-customization";
 import { StudioFooter } from "@/components/studio/studio-footer";
 import { StudioSidebar } from "@/components/studio/studio-sidebar";
 import { StudioStage } from "@/components/studio/studio-stage";
+import { UnsavedChangesDialog } from "@/components/studio/unsaved-changes-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ProductCard } from "@/components/ui/product-card";
 import { StageWithSidebarSkeleton } from "@/components/ui/route-skeletons";
@@ -20,7 +21,14 @@ import { Button } from "@/components/ui/button";
 import type { Product } from "@/lib/catalog";
 import { formatCents } from "@/lib/format";
 import { getProductConfig, type ProductConfig } from "@/lib/products/config";
+import {
+  applyColorParam,
+  defaultConfiguration,
+  parseConfiguration,
+  type Configuration,
+} from "@/lib/products/configuration";
 import { getDecalAsset } from "@/lib/products/decal-assets";
+import { isConfigurationDirty } from "@/lib/studio/dirty";
 import { getConfiguratorStore, selectTotalCents } from "@/stores/configurator-store";
 import { useCartStore } from "@/stores/cart-store";
 import { useDesignsStore } from "@/stores/designs-store";
@@ -78,7 +86,19 @@ function StudioProduct({ product, catalog }: { product: ProductConfig; catalog: 
   const [decalUrl, setDecalUrl] = useState<string | null>(null);
   const handle = useRef<CanvasHandle | null>(null);
 
+  /**
+   * The design as it was opened: the saved design this URL restores, or the
+   * product defaults for a new one. The guard and the "unsaved" wording are
+   * measured against this, never against the persisted working copy.
+   */
+  const [baseline, setBaseline] = useState<Configuration | null>(null);
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
+  const [saveOpen, setSaveOpen] = useState(false);
+  /** Set when the leave dialog's "Save design" was chosen; consumed by save. */
+  const leaveAfterSave = useRef<string | null>(null);
+
   const totalCents = selectTotalCents(product, quantity);
+  const dirty = isConfigurationDirty(configuration, baseline);
 
   // Rehydrate from localStorage, then apply `?color=`, in one effect so the
   // stored state is never overwritten by a stale default.
@@ -96,12 +116,52 @@ function StudioProduct({ product, catalog }: { product: ProductConfig; catalog: 
     const line = lineId
       ? useCartStore.getState().lines.find((l) => l.id === lineId && l.slug === product.slug)
       : undefined;
-    init(product, search.get("color"), (saved ?? line)?.configuration);
+    const restored = (saved ?? line)?.configuration;
+    init(product, search.get("color"), restored);
+
+    const opened = restored
+      ? parseConfiguration(product, restored)
+      : defaultConfiguration(product);
+    setBaseline(applyColorParam(product, opened, search.get("color")));
   }, [init, product, search, store]);
 
   useEffect(() => {
     setDecalUrl(getDecalAsset(product.slug)?.url ?? null);
   }, [product.slug, configuration.decal]);
+
+  // Tab close or reload: the browser owns the wording, we only ask it to prompt.
+  useEffect(() => {
+    if (!dirty) return;
+    function onBeforeUnload(event: BeforeUnloadEvent) {
+      event.preventDefault();
+      event.returnValue = "";
+    }
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [dirty]);
+
+  // In-app navigation: Next's <Link> handles clicks in the bubble phase, so a
+  // capture listener can hold the navigation and ask first. Modified clicks
+  // (new tab/window), downloads and external links stay the browser's business.
+  useEffect(() => {
+    if (!dirty) return;
+    function onClick(event: MouseEvent) {
+      if (event.defaultPrevented || event.button !== 0) return;
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const anchor = event.target instanceof Element ? event.target.closest("a[href]") : null;
+      if (!(anchor instanceof HTMLAnchorElement)) return;
+      if (anchor.target && anchor.target !== "_self") return;
+      if (anchor.hasAttribute("download")) return;
+      const url = new URL(anchor.href, window.location.href);
+      if (url.origin !== window.location.origin) return;
+      if (url.pathname === window.location.pathname && url.search === window.location.search) return;
+      event.preventDefault();
+      event.stopPropagation();
+      setPendingHref(`${url.pathname}${url.search}${url.hash}`);
+    }
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
+  }, [dirty]);
 
   // The model is static by default; orbiting pauses a rotation the shopper
   // started with the toolbar button. It never restarts on its own.
@@ -118,6 +178,8 @@ function StudioProduct({ product, catalog }: { product: ProductConfig; catalog: 
       qty: quantity,
       unitCents: product.priceCents,
     });
+    // The design now exists in the cart, so a navigation no longer loses work.
+    setBaseline(configuration);
     toast("Added to cart", {
       description: `${product.name} × ${quantity}`,
       action: {
@@ -135,10 +197,39 @@ function StudioProduct({ product, catalog }: { product: ProductConfig; catalog: 
       configuration,
       thumbnail: handle.current?.capture() ?? "",
     });
+    setBaseline(configuration);
     toast("Design saved", {
       description: name,
       action: { label: "View designs", onClick: () => router.push("/designs") },
     });
+
+    // "Save design" in the leave dialog means "save, then keep going".
+    const next = leaveAfterSave.current;
+    leaveAfterSave.current = null;
+    if (next) router.push(next);
+  }
+
+  function handleLeave() {
+    const next = pendingHref;
+    setPendingHref(null);
+    if (next) router.push(next);
+  }
+
+  function handleSaveThenLeave() {
+    leaveAfterSave.current = pendingHref;
+    setPendingHref(null);
+    // The dialog locks body scroll until it unmounts, so move to the purchase
+    // bar on the next frame or the save form would open off-screen.
+    requestAnimationFrame(() => {
+      document.getElementById("studio-purchase")?.scrollIntoView({ block: "center" });
+      setSaveOpen(true);
+    });
+  }
+
+  function handleSaveOpenChange(open: boolean) {
+    setSaveOpen(open);
+    // Dismissing the form without saving cancels a pending "save then leave".
+    if (!open) leaveAfterSave.current = null;
   }
 
   if (!hydrated) {
@@ -210,9 +301,20 @@ function StudioProduct({ product, catalog }: { product: ProductConfig; catalog: 
         onQuantity={setQuantity}
         onAddToCart={handleAddToCart}
         onSaveDesign={handleSaveDesign}
+        saveOpen={saveOpen}
+        onSaveOpenChange={handleSaveOpenChange}
       />
 
       <DetailsPanel product={product} reduced={reduced} />
+
+      <UnsavedChangesDialog
+        open={pendingHref !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingHref(null);
+        }}
+        onSave={handleSaveThenLeave}
+        onLeave={handleLeave}
+      />
 
       {suggestions.length > 0 ? (
         <section aria-labelledby="also-like" className="flex flex-col gap-6">

@@ -14,6 +14,16 @@ const hexSchema = z.string().regex(/^#[0-9a-f]{6}$/i);
 /** Default engraving colour (ivory etch) when a config predates the colour field. */
 export const ENGRAVE_COLOR_DEFAULT = "#f2f0eb";
 
+/**
+ * Decal transform limits. One source for the zod schema, the sliders and the
+ * numeric fields, so the UI can never drift from the v1 contract.
+ */
+export const DECAL_LIMITS = {
+  scale: { min: 0.3, max: 1.5, step: 0.01, decimals: 2 },
+  rotation: { min: -180, max: 180, step: 1, decimals: 0 },
+  offset: { min: -1, max: 1, step: 0.01, decimals: 2 },
+} as const;
+
 export const configurationSchema = z.object({
   version: z.literal(CONFIGURATION_VERSION),
   slug: z.string().min(1),
@@ -32,10 +42,10 @@ export const configurationSchema = z.object({
     .object({
       name: z.string().max(80),
       zone: z.string(),
-      scale: z.number().min(0.3).max(1.5),
-      rotation: z.number().min(-180).max(180),
-      offsetX: z.number().min(-1).max(1),
-      offsetY: z.number().min(-1).max(1),
+      scale: z.number().min(DECAL_LIMITS.scale.min).max(DECAL_LIMITS.scale.max),
+      rotation: z.number().min(DECAL_LIMITS.rotation.min).max(DECAL_LIMITS.rotation.max),
+      offsetX: z.number().min(DECAL_LIMITS.offset.min).max(DECAL_LIMITS.offset.max),
+      offsetY: z.number().min(DECAL_LIMITS.offset.min).max(DECAL_LIMITS.offset.max),
       avoidSeams: z.boolean(),
     })
     .nullable(),
@@ -46,6 +56,36 @@ export type DecalSettings = NonNullable<Configuration["decal"]>;
 
 export function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
+}
+
+/**
+ * Round to a fixed number of decimals, without the float noise of `toFixed`.
+ */
+export function roundTo(value: number, decimals: number): number {
+  const factor = 10 ** decimals;
+  return Math.round(value * factor) / factor;
+}
+
+/** A decal number field: clamp to the contract range and round to its step precision. */
+export function clampDecalScale(value: number): number {
+  return clampToRange(value, DECAL_LIMITS.scale);
+}
+
+export function clampDecalRotation(value: number): number {
+  return clampToRange(value, DECAL_LIMITS.rotation);
+}
+
+export function clampDecalOffset(value: number): number {
+  return clampToRange(value, DECAL_LIMITS.offset);
+}
+
+function clampToRange(
+  value: number,
+  range: { min: number; max: number; decimals: number },
+): number {
+  // A cleared number input parses to NaN; land on the floor rather than NaN.
+  const safe = Number.isFinite(value) ? value : range.min;
+  return roundTo(clamp(safe, range.min, range.max), range.decimals);
 }
 
 /** Finish is only meaningful on finishable parts; everything else is pinned to matte. */

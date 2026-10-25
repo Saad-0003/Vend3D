@@ -19,11 +19,17 @@ import { productConfigs } from "@/lib/products/config";
 import type { Configuration } from "@/lib/products/configuration";
 import { buildPlaceholder } from "@/components/studio/three/placeholder-models";
 import type { ModelSource } from "@/components/studio/three/use-model-source";
+import {
+  invalidateGlb,
+  loadWithRetry,
+  markGlbFailed,
+  setGlbAttempt,
+  setGlbProgress,
+  startGlbLoad,
+} from "@/lib/studio/glb";
 
 /** plan.md: material updates tween over 300ms. */
 const TWEEN_MS = 300;
-/** plan.md: model loads must fail over to the placeholder within 20s. */
-const MODEL_TIMEOUT_S = 20;
 
 /**
  * Parsed GLB entries per URL, shared across mounts and kicked off at MODULE
@@ -43,36 +49,56 @@ const glbEntries = new Map<
   { promise: Promise<GLTF>; status: "pending" | "ok" | "err"; result?: GLTF; error?: unknown }
 >();
 
+/**
+ * Streams the GLB so the stage can show real byte progress, and hands the
+ * parsed mesh back. The response body is concatenated by hand because
+ * `arrayBuffer()` reports nothing until it is done.
+ */
+async function fetchGlb(url: string, signal: AbortSignal): Promise<ArrayBuffer> {
+  const response = await fetch(url, { cache: "no-store", signal });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+  const header = Number(response.headers.get("content-length"));
+  const total = Number.isFinite(header) && header > 0 ? header : null;
+  const body = response.body;
+  if (!body) return response.arrayBuffer();
+
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let loaded = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (!value) continue;
+    chunks.push(value);
+    loaded += value.byteLength;
+    setGlbProgress(url, loaded, total);
+  }
+
+  const bytes = new Uint8Array(loaded);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes.buffer;
+}
+
 function loadGlbEntry(url: string) {
   let entry = glbEntries.get(url);
   if (entry) return entry;
+
   // Fetch + parse bypasses FileLoader (its request/signal stack stalled in the
   // field); parse() is pure and the GLBs are self-contained, so no path needed.
-  // A watchdog guarantees the suspense never hangs forever: after 20s the
-  // boundary swaps in the placeholder (plan.md error budget).
-  const promise = new Promise<GLTF>((resolve, reject) => {
-    const watchdog = window.setTimeout(
-      () => reject(new Error(`GLB load timed out: ${url}`)),
-      MODEL_TIMEOUT_S * 1000,
-    );
-    fetch(url, { cache: "no-store" })
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.arrayBuffer();
-      })
-      .then(
-        (buffer) => new Promise<GLTF>((res, rej) => new GLTFLoader().parse(buffer, "", res, rej)),
-      )
-      .then(
-        (gltf) => {
-          clearTimeout(watchdog);
-          resolve(gltf);
-        },
-        (e) => {
-          clearTimeout(watchdog);
-          reject(e);
-        },
-      );
+  // `loadWithRetry` owns the 20s budget and the two short-backoff retries, so a
+  // hanging or failing asset can never hold the Suspense boundary forever.
+  startGlbLoad(url);
+  let attemptCount = 0;
+  const promise = loadWithRetry(async (signal) => {
+    attemptCount += 1;
+    if (attemptCount > 1) setGlbAttempt(url, attemptCount);
+    const buffer = await fetchGlb(url, signal);
+    return new Promise<GLTF>((resolve, reject) => new GLTFLoader().parse(buffer, "", resolve, reject));
   });
   entry = { promise, status: "pending" };
   glbEntries.set(url, entry);
@@ -85,9 +111,19 @@ function loadGlbEntry(url: string) {
       entry.status = "err";
       entry.error = error;
       glbEntries.delete(url);
+      markGlbFailed(url);
     },
   );
   return entry;
+}
+
+/**
+ * Manual retry from the stage: drop both the parsed cache and the shared load
+ * state, then let the next render start a fresh attempt.
+ */
+export function retryGlb(url: string) {
+  glbEntries.delete(url);
+  invalidateGlb(url);
 }
 
 // Module-init prefetch: begin loading every bundled GLB the moment this chunk
@@ -174,7 +210,9 @@ class GlbErrorBoundary extends Component<
 
 function GlbModel(props: ModelShellProps) {
   return (
-    <GlbErrorBoundary fallback={<PlaceholderModel {...props} />}>
+    // The fallback must not report "ready": the stage's overlay reads the real
+    // load state (failed) and offers a manual retry instead of fading out.
+    <GlbErrorBoundary fallback={<PlaceholderModel {...props} onReady={undefined} />}>
       <GlbModelInner {...props} />
     </GlbErrorBoundary>
   );

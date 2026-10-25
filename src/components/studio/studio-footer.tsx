@@ -26,6 +26,8 @@ export function StudioFooter({
   onQuantity,
   onAddToCart,
   onSaveDesign,
+  saveOpen,
+  onSaveOpenChange,
 }: {
   name: string;
   description: string;
@@ -34,9 +36,15 @@ export function StudioFooter({
   onQuantity: (qty: number) => void;
   onAddToCart: () => void;
   onSaveDesign: (name: string) => void;
+  /** Controlled by the studio screen so the leave guard can open the save form. */
+  saveOpen?: boolean;
+  onSaveOpenChange?: (open: boolean) => void;
 }) {
   return (
-    <div className="rounded-[var(--card-radius)] border border-[var(--hairline)] bg-[var(--surface-1)] p-4 [box-shadow:var(--inner-highlight)] max-lg:sticky max-lg:bottom-0 max-lg:z-30 sm:p-5">
+    <div
+      id="studio-purchase"
+      className="rounded-[var(--card-radius)] border border-[var(--hairline)] bg-[var(--surface-1)] p-4 [box-shadow:var(--inner-highlight)] max-lg:sticky max-lg:bottom-0 max-lg:z-30 sm:p-5"
+    >
       <div className="flex flex-col gap-4">
         <div className="flex min-w-0 flex-col gap-1">
           <h1 className="lux-display text-[22px] leading-[1.1] text-[var(--ivory)]">{name}</h1>
@@ -94,7 +102,11 @@ export function StudioFooter({
           </div>
 
           <div className="flex flex-1 items-center justify-end gap-3">
-            <SaveDesignButton onSave={onSaveDesign} />
+            <SaveDesignButton
+              onSave={onSaveDesign}
+              open={saveOpen}
+              onOpenChange={onSaveOpenChange}
+            />
             <ShimmerButton
               onClick={onAddToCart}
               shimmerColor="#0a0a0b"
@@ -112,8 +124,18 @@ export function StudioFooter({
   );
 }
 
-function SaveDesignButton({ onSave }: { onSave: (name: string) => void }) {
-  const [open, setOpen] = useState(false);
+function SaveDesignButton({
+  onSave,
+  open: controlledOpen,
+  onOpenChange,
+}: {
+  onSave: (name: string) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}) {
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const open = controlledOpen ?? uncontrolledOpen;
+  const setOpen = onOpenChange ?? setUncontrolledOpen;
   const [name, setName] = useState("");
 
   function submit() {
@@ -149,6 +171,7 @@ function SaveDesignButton({ onSave }: { onSave: (name: string) => void }) {
           value={name}
           maxLength={50}
           placeholder="My design"
+          autoFocus
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") submit();

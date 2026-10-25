@@ -1,11 +1,20 @@
 "use client";
 
+import { useState } from "react";
+
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { DecalDropzone } from "@/components/studio/controls/decal-dropzone";
 import type { DecalZone } from "@/lib/products/config";
-import type { DecalSettings } from "@/lib/products/configuration";
+import {
+  DECAL_LIMITS,
+  clampDecalOffset,
+  clampDecalRotation,
+  clampDecalScale,
+  type DecalSettings,
+} from "@/lib/products/configuration";
 import { cn } from "@/lib/utils";
 
 /**
@@ -70,40 +79,46 @@ export function DecalControls({
         </div>
       </div>
 
-      <Slider
+      <NumberSlider
         label="Scale"
         value={settings.scale}
-        min={0.3}
-        max={1.5}
-        step={0.01}
-        format={(v) => `${Math.round(v * 100)}%`}
+        min={DECAL_LIMITS.scale.min}
+        max={DECAL_LIMITS.scale.max}
+        step={DECAL_LIMITS.scale.step}
+        decimals={DECAL_LIMITS.scale.decimals}
+        suffix="×"
+        clampValue={clampDecalScale}
         onChange={(scale) => onChange({ ...settings, scale })}
       />
-      <Slider
+      <NumberSlider
         label="Rotation"
         value={settings.rotation}
-        min={-180}
-        max={180}
-        step={1}
-        format={(v) => `${Math.round(v)}°`}
+        min={DECAL_LIMITS.rotation.min}
+        max={DECAL_LIMITS.rotation.max}
+        step={DECAL_LIMITS.rotation.step}
+        decimals={DECAL_LIMITS.rotation.decimals}
+        suffix="°"
+        clampValue={clampDecalRotation}
         onChange={(rotation) => onChange({ ...settings, rotation })}
       />
-      <Slider
+      <NumberSlider
         label="Horizontal"
         value={settings.offsetX}
-        min={-1}
-        max={1}
-        step={0.01}
-        format={(v) => v.toFixed(2)}
+        min={DECAL_LIMITS.offset.min}
+        max={DECAL_LIMITS.offset.max}
+        step={DECAL_LIMITS.offset.step}
+        decimals={DECAL_LIMITS.offset.decimals}
+        clampValue={clampDecalOffset}
         onChange={(offsetX) => onChange({ ...settings, offsetX })}
       />
-      <Slider
+      <NumberSlider
         label="Vertical"
         value={settings.offsetY}
-        min={-1}
-        max={1}
-        step={0.01}
-        format={(v) => v.toFixed(2)}
+        min={DECAL_LIMITS.offset.min}
+        max={DECAL_LIMITS.offset.max}
+        step={DECAL_LIMITS.offset.step}
+        decimals={DECAL_LIMITS.offset.decimals}
+        clampValue={clampDecalOffset}
         onChange={(offsetY) => onChange({ ...settings, offsetY })}
       />
 
@@ -137,13 +152,15 @@ export function DecalControls({
   );
 }
 
-function Slider({
+function NumberSlider({
   label,
   value,
   min,
   max,
   step,
-  format,
+  decimals,
+  suffix,
+  clampValue,
   onChange,
 }: {
   label: string;
@@ -151,29 +168,103 @@ function Slider({
   min: number;
   max: number;
   step: number;
-  format: (v: number) => string;
-  onChange: (v: number) => void;
+  decimals: number;
+  suffix?: string;
+  clampValue: (value: number) => number;
+  onChange: (value: number) => void;
 }) {
   const id = `decal-${label.toLowerCase()}`;
+  const [draft, setDraft] = useState(() => formatNumber(value, decimals));
+  const [lastValue, setLastValue] = useState(value);
+
+  // Re-sync when the value changes elsewhere: the paired slider, undo/redo, or
+  // a restored saved design.
+  if (value !== lastValue) {
+    setLastValue(value);
+    setDraft(formatNumber(value, decimals));
+  }
+
+  /**
+   * A text input with `inputMode="decimal"`, not `type="number"`: controlled
+   * number inputs drop the value of an in-progress entry like "0." to "", which
+   * makes the decimals impossible to type. Non-numeric text never commits.
+   */
+  function commit(raw: string) {
+    setDraft(raw);
+    if (raw.trim() === "") return;
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed)) return;
+    const clamped = clampValue(parsed);
+    setLastValue(clamped);
+    onChange(clamped);
+  }
+
+  function settle() {
+    // Empty or non-numeric text is not an edit: revert to the committed value
+    // instead of clamping a NaN down to the floor.
+    const parsed = Number(draft);
+    const clamped =
+      draft.trim() === "" || !Number.isFinite(parsed) ? value : clampValue(parsed);
+    setDraft(formatNumber(clamped, decimals));
+    setLastValue(clamped);
+    if (clamped !== value) onChange(clamped);
+  }
+
+  const display = `${formatNumber(value, decimals)}${suffix ?? ""}`;
+
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-baseline justify-between">
-        <Label htmlFor={id} className="lux-mono text-[11px] tracking-[0.16em] text-[var(--muted)] uppercase">
+      <div className="flex items-center justify-between gap-3">
+        <Label
+          htmlFor={`${id}-value`}
+          className="lux-mono text-[11px] tracking-[0.16em] text-[var(--muted)] uppercase"
+        >
           {label}
         </Label>
-        <span className="lux-mono lux-tabular text-[11px] text-[var(--ivory)]">{format(value)}</span>
+        <span className="flex items-center gap-1.5">
+          <Input
+            id={`${id}-value`}
+            type="text"
+            inputMode="decimal"
+            autoComplete="off"
+            spellCheck={false}
+            value={draft}
+            aria-label={`${label} value`}
+            onChange={(event) => commit(event.target.value)}
+            onBlur={settle}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") settle();
+            }}
+            className="lux-mono lux-tabular h-9 w-20 rounded-full bg-[var(--surface-2)] px-3 text-right text-[12px] text-[var(--ivory)] ring-1 ring-[var(--hairline)]"
+          />
+          {suffix ? (
+            <span aria-hidden className="lux-mono w-3 text-[11px] text-[var(--muted)]">
+              {suffix}
+            </span>
+          ) : null}
+        </span>
       </div>
       <input
-        id={id}
+        id={`${id}-range`}
         type="range"
         min={min}
         max={max}
         step={step}
         value={value}
-        aria-valuetext={format(value)}
-        onChange={(e) => onChange(Number(e.target.value))}
+        aria-label={`${label} slider`}
+        aria-valuetext={display}
+        onChange={(event) => {
+          const next = clampValue(Number(event.target.value));
+          setLastValue(next);
+          setDraft(formatNumber(next, decimals));
+          onChange(next);
+        }}
         className="h-2.5 w-full cursor-pointer touch-none appearance-none rounded-full accent-[var(--lime)]"
       />
     </div>
   );
+}
+
+function formatNumber(value: number, decimals: number): string {
+  return value.toFixed(decimals);
 }

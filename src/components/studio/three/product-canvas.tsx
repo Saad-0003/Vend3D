@@ -9,8 +9,10 @@ import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 
 import type { CameraPresetKey, ProductConfig } from "@/lib/products/config";
 import type { Configuration } from "@/lib/products/configuration";
-import { ProductModel } from "@/components/studio/three/product-model";
+import { ModelLoadOverlay } from "@/components/studio/three/model-load-overlay";
+import { ProductModel, retryGlb } from "@/components/studio/three/product-model";
 import type { ModelSource } from "@/components/studio/three/use-model-source";
+import { markGlbReady } from "@/lib/studio/glb";
 
 /** plan.md §Phase 5: cap device pixel ratio at 2 for the viewer. */
 const DPR: [number, number] = [1, 2];
@@ -88,6 +90,8 @@ export default function ProductCanvas({
   const [webgl, setWebgl] = useState<boolean | null>(() => webglKnown);
   // Mount cross-fade: softens the swap when the route carries a new product.
   const [shown, setShown] = useState(canvasEverShown);
+  // Manual retry remounts the model subtree so its error boundary resets.
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     if (webglKnown === null) {
@@ -101,6 +105,16 @@ export default function ProductCanvas({
     });
     return () => cancelAnimationFrame(id);
   }, []);
+
+  const handleReady = useCallback(() => {
+    markGlbReady(product.model.glb);
+    onReady?.();
+  }, [onReady, product.model.glb]);
+
+  const handleRetry = useCallback(() => {
+    retryGlb(product.model.glb);
+    setRetryCount((count) => count + 1);
+  }, [product.model.glb]);
 
   if (webgl === null) return null;
 
@@ -116,7 +130,7 @@ export default function ProductCanvas({
 
   return (
     <div
-      className={`size-full transition-opacity duration-500 ${shown ? "opacity-100" : "opacity-0"}`}
+      className={`relative size-full transition-opacity duration-500 ${shown ? "opacity-100" : "opacity-0"}`}
     >
       <Canvas
         dpr={DPR}
@@ -133,11 +147,12 @@ export default function ProductCanvas({
         <directionalLight position={[-3, 2, -3]} intensity={0.5} color="#d7e7ff" />
         <Suspense fallback={null}>
           <ProductModel
+            key={retryCount}
             product={product}
             configuration={configuration}
             source={source}
             decalUrl={decalUrl}
-            onReady={onReady}
+            onReady={handleReady}
           />
         </Suspense>
         <ContactShadows position={[0, -1.15, 0]} opacity={0.5} scale={6} blur={2.4} far={3} />
@@ -148,6 +163,7 @@ export default function ProductCanvas({
           handle={handle}
         />
       </Canvas>
+      <ModelLoadOverlay url={product.model.glb} onRetry={handleRetry} />
     </div>
   );
 }
