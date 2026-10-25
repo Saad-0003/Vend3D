@@ -2,7 +2,17 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { MapPin, Package, Pencil, Plus, RotateCcw, Shapes, Trash2, Upload } from "lucide-react";
+import {
+  ArrowRight,
+  MapPin,
+  Package,
+  Pencil,
+  Plus,
+  RotateCcw,
+  Shapes,
+  Trash2,
+  Upload,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { BlurFade } from "@/components/ui/blur-fade";
@@ -30,7 +40,8 @@ import {
 import { DesignCard } from "@/components/designs/design-card";
 import { initialsOf } from "@/lib/account/profile";
 import { formatCents } from "@/lib/format";
-import { formatOrderDate, type OrderRecord } from "@/lib/checkout/order";
+import { formatOrderDate } from "@/lib/checkout/order";
+import { reorderOrder } from "@/lib/orders/reorder";
 import { useAuthStore, type AuthUser } from "@/stores/auth-store";
 import { useCartStore } from "@/stores/cart-store";
 import { useDesignsStore } from "@/stores/designs-store";
@@ -262,7 +273,7 @@ export function OrdersPanel() {
 
                 <Button
                   variant="ghost"
-                  onClick={() => reorder(order)}
+                  onClick={() => reorderOrder(order)}
                   className="h-11 w-fit rounded-full px-5 text-[var(--ivory)] ring-1 ring-[var(--hairline-strong)] hover:bg-[var(--surface-2)]"
                 >
                   <RotateCcw className="size-4" strokeWidth={1.5} aria-hidden />
@@ -273,27 +284,19 @@ export function OrdersPanel() {
           </BlurFade>
         ))}
       </Accordion>
+
+      <Button
+        asChild
+        variant="ghost"
+        className="h-11 w-fit rounded-full px-5 text-[var(--ivory)] ring-1 ring-[var(--hairline-strong)] hover:bg-[var(--surface-2)]"
+      >
+        <Link href="/orders">
+          View all orders
+          <ArrowRight className="size-4" strokeWidth={1.5} aria-hidden />
+        </Link>
+      </Button>
     </Panel>
   );
-}
-
-/** Puts every line of a past order back in the cart, at its ordered price. */
-function reorder(order: OrderRecord) {
-  const addLine = useCartStore.getState().addLine;
-  for (const item of order.items) {
-    addLine({
-      slug: item.slug,
-      name: item.name,
-      configuration: item.configuration,
-      thumbnail: item.thumbnail ?? "",
-      qty: item.qty,
-      unitCents: item.unitCents,
-    });
-  }
-  useCartStore.getState().setDrawerOpen(true);
-  toast("Back in your cart", {
-    description: `${order.itemCount} item${order.itemCount === 1 ? "" : "s"} from ${order.id}.`,
-  });
 }
 
 /* ----------------------------------------------------------- saved designs */

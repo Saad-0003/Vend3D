@@ -12,7 +12,7 @@ The project is built **UI-first, as vertical slices**: each prompt ships complet
 
 The server half (Prisma, Supabase, server actions, `middleware.ts`) is built **afterwards by replacing each seam's implementation, not the components**; component callers never import Prisma or Supabase directly. Every screen ships skeleton / empty / error / populated states, is responsive at 360 / 768 / 1280 px, and respects keyboard, aria and `prefers-reduced-motion` (D-050, D-057, D-058).
 
-Route and schema decisions already locked by earlier prompts are recorded in D-045 (`/customize` → `/products/[id]`), D-048 (client checkout island, `/order/[id]`), D-051 (mock auth), D-055–D-061 (info/legal templates, demo reviews, GLB sourcing and loading) and D-072 (GLBs bundled from `src/assets/models`). Checkbox totals after applying this revision: **33/191 ticked** (29/185 before it; 4 Phase 5 lines re-ticked and 6 new Phase 1B boxes added); phases 3–9 subsections below carry status tags — "(UI done, server pending)" or "(client-only)" — on lines whose work exists on the client seam, and the new Phase 1B (added between Phase 1 and Phase 2, unrenumbered) gates Phase 2.
+Route and schema decisions already locked by earlier prompts are recorded in D-045 (`/customize` → `/products/[id]`), D-048 (client checkout island, `/order/[id]`), D-051 (mock auth), D-055–D-061 (info/legal templates, demo reviews, GLB sourcing and loading) and D-072 (GLBs bundled from `src/assets/models`). Checkbox totals after applying this revision: **34/191 ticked** (29/185 before it; 4 Phase 5 lines re-ticked and 6 new Phase 1B boxes added, U1 now ticked); phases 3–9 subsections below carry status tags — "(UI done, server pending)" or "(client-only)" — on lines whose work exists on the client seam, and the new Phase 1B (added between Phase 1 and Phase 2, unrenumbered) gates Phase 2.
 
 ---
 
@@ -161,7 +161,7 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 **Tasks**
 
-- [ ] U1 `/orders` history and route cleanup — `/orders` reads the orders store as a real list; `/products` redirects to `/shop`; `/checkout/success` redirects to `/order/[id]`
+- [x] U1 `/orders` history and route cleanup — `/orders` reads the orders store as a real list; `/products` redirects to `/shop`; `/checkout/success` redirects to `/order/[id]`
 - [ ] U2 Studio completion — model load progress, fullscreen toggle, reload-retry ×3 on GLB failure, reset confirm dialog, unsaved-changes leave guard, numeric decal transform inputs
 - [ ] U3 Auth and session screens — `/forbidden`, forgot-password, check-email, session-expired dialog, a role field on the mock user, and `RequireAdmin`
 - [ ] U4 Admin shell and dashboard — sidebar layout and overview tiles on the same design system
@@ -291,7 +291,7 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 **Deviations to reconcile (revised Oct 2026)**
 
-- The catalog route is **`/shop`** (URL-state filters, sort and ⌘K command search, D-037/D-038); `/products` still renders a placeholder and will redirect to `/shop` (Phase 1B U1).
+- The catalog route is **`/shop`** (URL-state filters, sort and ⌘K command search, D-037/D-038); `/products` redirects to `/shop` (Phase 1B U1).
 - `/products/[id]` **is** the studio screen (D-045); `/customize/[productId]` redirects to it keeping the query string.
 - `formatCents` lives in `src/lib/format.ts` (used across the app) but is not yet unit-tested; catalog data is the static `src/lib/catalog.ts` until this phase swaps `listProducts`'s body for the Prisma query.
 
@@ -474,7 +474,7 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 **Deviations to reconcile (revised Oct 2026)**
 
 - Orders live in the zustand `orders-store` (localStorage) with status **"Placed"**; the planned `PAID`/`DEMO_CARD` enum and the DB writer arrive with Phase 2 + the `placeOrder` action (D-048). "Placed" maps to `PAID` semantics at migration time.
-- Confirmation route is `/order/[id]` (read-only); `/checkout/success` and `/checkout/cancelled` were not built — `/checkout/success` will redirect to `/order/[id]` (Phase 1B U1).
+- Confirmation route is `/order/[id]` (read-only); `/checkout/cancelled` was not built; `/checkout/success` redirects to `/order/[id]` (Phase 1B U1).
 - `OrderRecord` is a superset of ARCHITECTURE.md §5's `Order` table (address, subtotal, shipping, `shippingMethodId`); the migration must add those columns or a shipping-address table, plus the `userId` FK and `paymentMethod`.
 - Totals are recomputed from the cart in integer cents by `lib/checkout/order.ts`; the planned DB cross-check replaces the store body, not its callers.
 

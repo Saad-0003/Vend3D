@@ -1221,3 +1221,92 @@ panel scrolls.
 **Alternatives rejected:** editing existing plan lines in place (forbidden by the revision's rules; loses the original contract wording); marking server-pending work as fully done (would misstate Phase 2+ scope); leaving the plan stale (the next contributor would re-derive these facts from DECISIONS stories).
 
 **Note:** the "touch no other file" rule of the plan-revision prompt deferred this D-077 entry out of that commit; it is logged here before any further coding task so the rule "log every new decision" is restored.
+
+### D-080 - `/orders` history on the existing orders seam
+
+**What:** `/orders` is now a real list built from the persisted orders store. Filtering, id
+search and the 10-at-a-time load-more live in pure selectors (`src/lib/orders/history.ts`) so
+Phase 9 can swap the store body for a paginated query without touching the screen. Status chips
+are derived from the statuses present in the records (currently only `Placed`) plus `All`; the
+search matches the full id or the short display id, case-insensitively and with or without `#`.
+Each card uses the shop/account card recipe, the account panels' `BlurFade` stagger, up to three
+item thumbnails (falling back to the product image after the store drops persisted snapshots)
+with a `+N` tile, and `View order` / `Reorder`. The screen rehydrates explicitly so a blocked or
+corrupt storage read can render the shared `ErrorState` with a retry, and it wraps the page in
+`MotionConfig reducedMotion="user"` so the entrance motion respects the preference. Filters are
+local state rather than URL state: this list is short, private and not a shareable view.
+
+**Why:** the placeholder had no data; the store already exposes everything a history needs, so
+the screen only needed selectors and a card, not a second data path.
+
+**Alternatives rejected:** URL-backed filters and search (matches `/designs`, but a filtered
+private order list is not a link worth sharing); page-number pagination (the brief asks for
+"Load more"); a bespoke order card style (would be the second card language, against DESIGN.md
+rule 3).
+
+### D-081 - Reorder is one shared helper, still through `addLine`
+
+**What:** the account panel's local `reorder()` moved to `src/lib/orders/reorder.ts` and
+`/orders` calls the same `reorderOrder(order)`. It copies each line's slug, name, configuration,
+thumbnail fallback, quantity and unit-price snapshot through the existing cart `addLine` seam,
+then opens the drawer and toasts the item count.
+
+**Why:** two entry points must not drift; the brief's "existing cart merge logic" is the cart
+store's `addLine` path, and reusing it keeps the price snapshot and configuration identical to a
+manual add. The store currently appends lines rather than merging identical configurations; that
+behaviour is unchanged here and applies equally to both entry points.
+
+**Alternatives rejected:** adding a new dedupe/merge action to the cart store (changes `/cart`,
+the drawer and checkout line identity, and needs its own test pass; outside this UI slice);
+duplicating the loop in the new screen (guarantees drift).
+
+### D-082 - Legacy routes redirect on the server
+
+**What:** `/products` is a server `redirect("/shop")`; `/checkout/success?order=ID` is a server
+`redirect("/order/<encoded id>")`, with a missing/blank `order` falling back to `/orders`.
+`/products/[id]` stays the studio route, untouched.
+
+**Why:** the canonical archive is `/shop` (D-037/D-038) and the canonical receipt is
+`/order/[id]` (D-048). A server redirect has no client-side flicker and keeps the old URLs valid.
+`redirect()` (307) rather than `permanentRedirect()` because the demo URL set is still moving and
+browsers must not cache the hop.
+
+**Alternatives rejected:** a client `useEffect` redirect (renders the stale placeholder first);
+`permanentRedirect` (caches a temporary routing choice in every visitor's browser).
+
+### D-083 - Ownership for browser-local orders is `RequireAuth`, not a `userId` filter
+
+**What:** `/orders` mounts behind `RequireAuth`, matching `/account`. The order records do not
+carry a `userId` yet, so the selector filters by status/search only; the ownership boundary is
+the session guard plus the fact that the records live in this browser's localStorage.
+
+**Why:** adding a `userId` column now would touch `OrderRecord`, `buildOrderRecord`, checkout and
+the account panel, and would hide every order already placed before the field existed � that is
+Phase 9 server-persistence work, which this slice explicitly excludes. When the server query
+lands it scopes by the session user; that replaces `selectOrders`' input, not its callers.
+
+**Alternatives rejected:** stamping `userId` on new orders and filtering in `/orders` only
+(inconsistent with the account panel and invisible to pre-existing records); filtering by email
+(the order snapshot's address email is not a session identity and can be edited per checkout).
+
+### D-084 - WebKit e2e runs against `next start`, not `next dev`
+
+**What:** the WebKit project fails under `next dev` with `page.goto: Navigation to "<route>" is
+interrupted by another navigation to "http://localhost:3000/shop"`, on any spec that visits a second
+route after `/shop` — `account.spec.ts` already did this before the `/orders` work. The same specs
+pass on WebKit against a production build (`next build` + `next start`), and on Chromium under
+`next dev`.
+
+**Why:** the dev server logs `Fast Refresh had to perform a full reload` as the suite starts; that
+full reload is a real document navigation to the current route (`/shop`), so WebKit aborts the
+`page.goto` that happens to be in flight. It is a dev-server reload, not a redirect or a router
+transition in our code: nothing in the app pushes `/shop` on these paths (`RequireAuth` pushes
+`/login?next=`, `AccountMenu` pushes `/shop` only on sign-out).
+
+**Verified:** `npx playwright test tests/e2e/orders.spec.ts --project=webkit` — 0 passed under
+`next dev`, 2/2 against `next start` on port 3100.
+
+**Alternatives rejected:** adding `waitForTimeout` or retries to paper over the interrupt (banned by
+AGENTS.md §3, and it hides any genuine navigation regression); dropping WebKit from the config
+(loses the only Safari-engine signal). Use `npm run build` then `next start` for a full WebKit run;
+Chromium stays on the dev server for the fast loop.

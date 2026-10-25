@@ -1,21 +1,25 @@
 import type { Metadata } from "next";
-import { PagePlaceholder } from "@/components/shared/page-placeholder";
-import { Skeleton } from "@/components/ui/skeleton";
 
-export const metadata: Metadata = { title: "Orders" };
+import { RequireAuth } from "@/components/auth/require-auth";
+import { OrdersScreen } from "@/components/orders/orders-screen";
 
+export const metadata: Metadata = {
+  title: "Orders",
+  description: "Your demo order history — open a receipt or reorder its lines.",
+};
+
+/**
+ * `/orders` — history for the signed-in shopper.
+ *
+ * `RequireAuth` is the ownership boundary for the browser-local orders store:
+ * it bounces a signed-out visitor to `/login?next=/orders` and returns them
+ * here. Phase 9's server query replaces the store body and adds the `userId`
+ * filter (D-083).
+ */
 export default function OrdersPage() {
   return (
-    <PagePlaceholder
-      eyebrow="Account"
-      title="Order history"
-      description="Past orders with thumbnails, totals and status badges, readable only by their owner. Phase 9 builds this screen."
-    >
-      <div className="flex w-full max-w-3xl flex-col gap-4">
-        {Array.from({ length: 3 }).map((_, index) => (
-          <Skeleton key={index} className="h-20 w-full rounded-[28px]" />
-        ))}
-      </div>
-    </PagePlaceholder>
+    <RequireAuth>
+      <OrdersScreen />
+    </RequireAuth>
   );
 }

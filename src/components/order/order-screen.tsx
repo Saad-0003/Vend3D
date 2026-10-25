@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Printer } from "lucide-react";
+import { ListOrdered, Printer } from "lucide-react";
 
 import { ConfirmationCheck } from "@/components/order/confirmation-check";
 import { OrderTimeline } from "@/components/order/order-timeline";
@@ -244,6 +244,16 @@ function OrderActions() {
           className="h-11 rounded-full px-5 text-[15px] text-[var(--ivory)] ring-1 ring-[var(--hairline-strong)] hover:bg-[var(--surface-2)]"
         >
           <Link href="/designs">View designs</Link>
+        </Button>
+        <Button
+          asChild
+          variant="ghost"
+          className="h-11 rounded-full px-5 text-[15px] text-[var(--ivory)] ring-1 ring-[var(--hairline-strong)] hover:bg-[var(--surface-2)]"
+        >
+          <Link href="/orders">
+            <ListOrdered className="size-4" strokeWidth={1.5} aria-hidden />
+            All orders
+          </Link>
         </Button>
       </div>
 

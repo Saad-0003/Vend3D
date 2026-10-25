@@ -236,3 +236,59 @@ export function AccountPageSkeleton() {
     </PageShell>
   );
 }
+
+/* ------------------------------------------------------------------ orders */
+
+/** Orders body: status/search toolbar, then three history cards. */
+export function OrdersBodySkeleton({ className }: { className?: string }) {
+  return (
+    <div className={cn("flex flex-col gap-5", className)}>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <Skeleton className="h-11 w-64 rounded-full" />
+        <Skeleton className="h-11 w-full rounded-full lg:w-[19rem]" />
+      </div>
+      <ul className="flex flex-col gap-4" aria-label="Loading orders">
+        {Array.from({ length: 3 }, (_, i) => (
+          <li
+            key={i}
+            className="flex flex-col gap-5 rounded-[var(--card-radius)] border border-[var(--hairline)] bg-[var(--surface-1)] p-5 [box-shadow:var(--inner-highlight)] sm:p-6"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex flex-col gap-2">
+                <Skeleton className="h-4 w-24 rounded-full" />
+                <Skeleton className="h-3 w-36 rounded-full" />
+              </div>
+              <Skeleton className="h-6 w-16 rounded-full" />
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                {Array.from({ length: 3 }, (_, thumb) => (
+                  <Skeleton key={thumb} className="size-14 rounded-[12px]" />
+                ))}
+              </div>
+              <div className="flex flex-col items-end gap-2">
+                <Skeleton className="h-3 w-16 rounded-full" />
+                <Skeleton className="h-5 w-20 rounded-full" />
+              </div>
+            </div>
+            <div className="flex items-center gap-2 border-t border-[var(--hairline)] pt-4">
+              <Skeleton className="h-11 w-28 rounded-full" />
+              <Skeleton className="h-11 w-28 rounded-full" />
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+export function OrdersPageSkeleton() {
+  return (
+    <PageShell aria-label="Loading orders" className="lux flex flex-col gap-10">
+      <PageHeaderSkeleton />
+      <div role="status" aria-label="Loading orders">
+        <OrdersBodySkeleton />
+      </div>
+    </PageShell>
+  );
+}
