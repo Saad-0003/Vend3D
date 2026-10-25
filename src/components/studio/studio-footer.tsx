@@ -14,9 +14,9 @@ export const QTY_MIN = 1;
 export const QTY_MAX = 10;
 
 /**
- * Sticky purchase bar, desktop footer of the studio column and mobile bottom
- * bar. Price and quantity come in as values; this component never computes
- * money. The add-to-cart pill is the landing page's lime ShimmerButton.
+ * The purchase bar under the stage and customization panel: price, quantity,
+ * save design and add to cart. Price and quantity come in as values; this
+ * component never computes money. On mobile it sticks to the viewport bottom.
  */
 export function StudioFooter({
   quantity,
@@ -32,8 +32,8 @@ export function StudioFooter({
   onSaveDesign: (name: string) => void;
 }) {
   return (
-    <div className="sticky bottom-0 z-30 -mx-4 border-t border-[var(--hairline)] bg-[var(--ink)]/90 px-4 py-4 backdrop-blur-xl sm:-mx-6 sm:px-6 lg:static lg:mx-0 lg:border-t-0 lg:bg-transparent lg:px-0 lg:py-0 lg:backdrop-blur-none">
-      <div className="mx-auto flex max-w-[1280px] flex-wrap items-center gap-4 lg:flex-nowrap lg:justify-between">
+    <div className="rounded-[var(--card-radius)] border border-[var(--hairline)] bg-[var(--surface-1)] p-4 [box-shadow:var(--inner-highlight)] max-lg:sticky max-lg:bottom-0 max-lg:z-30 sm:p-5">
+      <div className="flex flex-wrap items-center gap-4 lg:flex-nowrap lg:justify-between">
         <div className="flex flex-col gap-1">
           <span
             className="lux-mono lux-tabular flex items-baseline text-[20px] text-[var(--ivory)]"

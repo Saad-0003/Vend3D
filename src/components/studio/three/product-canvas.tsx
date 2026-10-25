@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import { Canvas, useThree } from "@react-three/fiber";
 import { ContactShadows, Environment, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
@@ -27,6 +27,24 @@ function zoomBounds(presetDistance: number, size: { width: number; height: numbe
   const min = presetDistance * 0.5 * fitScale;
   const max = Math.max(presetDistance * 2 * fitScale, presetDistance * 1.2);
   return { min, max };
+}
+
+/** World radius of the fitted model: `ModelShell` normalises its longest axis to 2.2 units. */
+const FITTED_DIAMETER = 2.2;
+/** Share of the narrower field of view the model may fill, leaving a margin. */
+const FRAME_FILL = 0.86;
+
+/**
+ * Distance at which a sphere of `radius` fits the narrower (vertical or
+ * horizontal) field of view. A tall, narrow stage would otherwise clip the
+ * model horizontally, because the authored presets only consider the height.
+ */
+function distanceForStage(radius: number, fovDeg: number, size: { width: number; height: number }) {
+  const vFov = THREE.MathUtils.degToRad(fovDeg);
+  const aspect = size.width / Math.max(1, size.height);
+  const hFov = 2 * Math.atan(Math.tan(vFov / 2) * aspect);
+  const halfAngle = Math.min(vFov, hFov) / 2;
+  return radius / Math.sin(halfAngle * FRAME_FILL);
 }
 
 export type CanvasHandle = {
@@ -169,10 +187,40 @@ function CameraRig({
       new THREE.Vector3(...product.model.cameraPresets.front).length(),
     [product.model.cameraPresets],
   );
+  // The authored presets are tuned for a wide stage. Narrow stages (e.g. the
+  // tall stage on a 1080p screen) would clip the model sideways, so every
+  // preset is pushed back by the same factor — the detail shot stays closer
+  // than the front shot.
+  const fitScale = useMemo(() => {
+    const fov = camera instanceof THREE.PerspectiveCamera ? camera.fov : 35;
+    const needed = distanceForStage(
+      (FITTED_DIAMETER * product.model.scale) / 2,
+      fov,
+      size,
+    );
+    return Math.max(1, needed / presetDistance);
+  }, [camera, presetDistance, product.model.scale, size]);
+  const fittedDistance = presetDistance * fitScale;
+
   const bounds = useMemo(
-    () => zoomBounds(presetDistance, size),
-    [presetDistance, size],
+    () => zoomBounds(fittedDistance, size),
+    [fittedDistance, size],
   );
+  const presetPosition = useCallback(
+    (key: CameraPresetKey) =>
+      new THREE.Vector3(...product.model.cameraPresets[key]).multiplyScalar(fitScale),
+    [product.model.cameraPresets, fitScale],
+  );
+
+  // Mount and resize: keep the viewing direction, apply the stage fit.
+  useEffect(() => {
+    const c = controls.current;
+    if (!c) return;
+    const offset = camera.position.clone().sub(c.target);
+    if (offset.lengthSq() === 0) return;
+    camera.position.copy(c.target).addScaledVector(offset.normalize(), fittedDistance);
+    c.update();
+  }, [camera, fittedDistance]);
 
   useEffect(() => {
     const cancelMotion = () => {
@@ -197,8 +245,8 @@ function CameraRig({
     };
 
     handle.current = {
-      reset: () => glide(new THREE.Vector3(...product.model.cameraPresets.front)),
-      preset: (key) => glide(new THREE.Vector3(...product.model.cameraPresets[key])),
+      reset: () => glide(presetPosition("front")),
+      preset: (key) => glide(presetPosition(key)),
       zoom: (direction) => {
         const c = controls.current;
         if (!c) return;
@@ -217,7 +265,7 @@ function CameraRig({
       cancelMotion();
       handle.current = null;
     };
-  }, [camera, gl, handle, product.model.cameraPresets, bounds]);
+  }, [bounds, camera, gl, handle, presetPosition]);
 
   return (
     <OrbitControls

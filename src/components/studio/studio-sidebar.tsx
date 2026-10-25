@@ -1,19 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Gauge, Palette, Star, Type } from "lucide-react";
+import { useState } from "react";
+import { Gauge, Palette, Type } from "lucide-react";
 
+import { DecalPanel, DetailsPanel, OptionsPanel } from "@/components/studio/studio-customization";
 import { EngraveControl } from "@/components/studio/controls/engrave-control";
 import { FinishControl } from "@/components/studio/controls/finish-control";
 import { HueColorControl, hueColor } from "@/components/studio/controls/hue-color-control";
 import { SectionCard } from "@/components/studio/studio-section-card";
-import {
-  SECTION_LABEL,
-  SIDEBAR_SECTIONS,
-  sectionAnchor,
-  sectionsFor,
-  type SectionId,
-} from "@/components/studio/section-types";
+import { sectionsFor } from "@/components/studio/section-types";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -21,120 +16,95 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { ProductConfig } from "@/lib/products/config";
 import { ENGRAVE_COLORS } from "@/lib/products/config";
 import { clampFinish, hexToHue, isHex, type Configuration } from "@/lib/products/configuration";
-import { scrollToSection } from "@/lib/lenis";
 import { cn } from "@/lib/utils";
 
 /**
- * Right column. The header (name, rating, price, chips) is pinned; the sidebar
- * sections scroll inside it. Chips for sections that live below the columns
- * scroll the page instead. The purchase footer is pinned to the column bottom.
+ * The customization panel beside the stage: every option section the product
+ * supports, stacked in one scrolling column whose height matches the stage.
+ * Purchase controls live in the footer bar below the two columns.
  */
 export function StudioSidebar({
   product,
   configuration,
   onChange,
+  decalUrl,
+  onDecalChange,
   reduced,
-  rating,
-  price,
-  footer,
 }: {
   product: ProductConfig;
   configuration: Configuration;
   onChange: (next: Configuration) => void;
+  decalUrl: string | null;
+  onDecalChange: () => void;
   reduced: boolean;
-  rating: number;
-  price: string;
-  footer: ReactNode;
 }) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const chips = useMemo(() => sectionsFor(product), [product]);
-  const inSidebar = useMemo(() => chips.filter((id) => SIDEBAR_SECTIONS.includes(id)), [chips]);
-  const [active, setActive] = useState<SectionId>(chips[0] ?? "details");
-
-  // Scroll-spy over the sidebar sections only.
-  useEffect(() => {
-    const root = scrollRef.current;
-    if (!root || inSidebar.length === 0) return;
-    const onScroll = () => {
-      let current: SectionId | undefined;
-      for (const id of inSidebar) {
-        const el = root.querySelector<HTMLElement>(`[data-section="${id}"]`);
-        if (el && el.offsetTop - root.scrollTop <= 24) current = id;
-      }
-      if (current) setActive(current);
-    };
-    root.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
-    return () => root.removeEventListener("scroll", onScroll);
-  }, [inSidebar]);
-
-  function jumpTo(id: SectionId) {
-    setActive(id);
-    if (!SIDEBAR_SECTIONS.includes(id)) {
-      scrollToSection(sectionAnchor(id));
-      return;
-    }
-    const root = scrollRef.current;
-    const el = root?.querySelector<HTMLElement>(`[data-section="${id}"]`);
-    if (root && el) root.scrollTo({ top: el.offsetTop - 12, behavior: reduced ? "auto" : "smooth" });
-  }
+  const sections = sectionsFor(product);
 
   return (
-    <aside className="flex w-full flex-col gap-4 lg:sticky lg:top-[84px] lg:h-[calc(100svh-108px)] lg:w-[440px] lg:shrink-0 xl:w-[460px]">
-      <div className="flex flex-col gap-4 rounded-[var(--card-radius)] border border-[var(--hairline)] bg-[var(--surface-1)] p-5 [box-shadow:var(--inner-highlight)]">
-        <div className="flex items-start justify-between gap-4">
-          <h1 className="lux-display text-[26px] leading-[1.05] text-[var(--ivory)]">{product.name}</h1>
-          <span className="lux-tabular inline-flex shrink-0 items-center gap-1 rounded-full bg-[var(--surface-2)] px-2.5 py-1 text-[11px] font-medium text-[var(--ivory)] ring-1 ring-[var(--hairline)]">
-            <Star className="size-3 fill-current text-[var(--lime)]" strokeWidth={0} aria-hidden />
-            {rating.toFixed(1)}
-          </span>
-        </div>
-        <span className="lux-mono lux-tabular text-[15px] text-[var(--ivory)]" aria-live="polite">
-          {price}
-        </span>
-
-        <nav aria-label="Jump to section">
-          <ul className="flex flex-wrap gap-2">
-            {chips.map((id) => (
-              <li key={id} className="min-w-0">
-                <button
-                  type="button"
-                  aria-current={active === id ? "true" : undefined}
-                  onClick={() => jumpTo(id)}
-                  className={cn(
-                    "lux-mono min-h-11 rounded-full px-3.5 text-[11px] whitespace-nowrap tracking-[0.14em] uppercase ring-1 transition-colors duration-300",
-                    active === id
-                      ? "bg-[var(--lime)] text-[var(--ink)] ring-[var(--lime)]"
-                      : "bg-[var(--surface-2)] text-[var(--muted)] ring-[var(--hairline)] hover:text-[var(--ivory)]",
-                  )}
-                >
-                  {SECTION_LABEL[id]}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </nav>
+    <aside className="flex w-full min-w-0 flex-col lg:sticky lg:top-[84px] lg:h-[calc(100svh-108px)] lg:w-[440px] lg:shrink-0 xl:w-[460px]">
+      <div
+        data-lenis-prevent
+        className="studio-scroll flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-2 pb-2 [scrollbar-color:var(--hairline-strong)_transparent] [scrollbar-width:thin]"
+      >
+        {sections.map((id) => {
+          switch (id) {
+            case "colour":
+              return (
+                <ColourSection
+                  key={id}
+                  product={product}
+                  configuration={configuration}
+                  onChange={onChange}
+                  reduced={reduced}
+                />
+              );
+            case "finish":
+              return (
+                <FinishSection
+                  key={id}
+                  product={product}
+                  configuration={configuration}
+                  onChange={onChange}
+                  reduced={reduced}
+                />
+              );
+            case "engrave":
+              return (
+                <EngraveSection
+                  key={id}
+                  product={product}
+                  configuration={configuration}
+                  onChange={onChange}
+                  reduced={reduced}
+                />
+              );
+            case "decal":
+              return (
+                <DecalPanel
+                  key={id}
+                  product={product}
+                  configuration={configuration}
+                  onChange={onChange}
+                  decalUrl={decalUrl}
+                  onDecalChange={onDecalChange}
+                  reduced={reduced}
+                />
+              );
+            case "options":
+              return (
+                <OptionsPanel
+                  key={id}
+                  product={product}
+                  configuration={configuration}
+                  onChange={onChange}
+                  reduced={reduced}
+                />
+              );
+            case "details":
+              return <DetailsPanel key={id} product={product} reduced={reduced} />;
+          }
+        })}
       </div>
-
-      <div className="relative flex min-h-0 flex-1 flex-col">
-        <div
-          ref={scrollRef}
-          data-lenis-prevent
-          className="studio-scroll relative flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-2 pb-6 [scrollbar-color:var(--hairline-strong)_transparent] [scrollbar-width:thin]"
-        >
-          {chips.includes("colour") ? (
-            <ColourSection product={product} configuration={configuration} onChange={onChange} reduced={reduced} />
-          ) : null}
-          {chips.includes("finish") ? (
-            <FinishSection product={product} configuration={configuration} onChange={onChange} reduced={reduced} />
-          ) : null}
-          {chips.includes("engrave") ? (
-            <EngraveSection product={product} configuration={configuration} onChange={onChange} reduced={reduced} />
-          ) : null}
-        </div>
-      </div>
-
-      {footer}
     </aside>
   );
 }

@@ -85,6 +85,7 @@ describe("route skeletons", () => {
     // The hub has no stage, so the stage's full-height desktop box must not
     // appear here. (The blank cards *do* carry 4:5 media, like the real cards.)
     expect(container.querySelector(".lg\\:h-\\[calc\\(100svh-150px\\)\\]")).toBeNull();
+    expect(container.querySelector(".lg\\:h-\\[calc\\(100svh-108px\\)\\]")).toBeNull();
   });
 
   it("the product skeleton reserves the stage beside its sidebar", () => {
@@ -93,7 +94,7 @@ describe("route skeletons", () => {
 
     const stage = container.querySelector(".lg\\:flex-1");
     expect(stage).not.toBeNull();
-    expect(classesOf(stage)).toContain("lg:h-[calc(100svh-150px)]");
+    expect(classesOf(stage)).toContain("lg:h-[calc(100svh-108px)]");
 
     // The sidebar keeps its fixed width, matching the studio screen.
     const sidebar = container.querySelector(".lg\\:w-\\[440px\\]");

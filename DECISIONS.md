@@ -1154,3 +1154,37 @@ remapping only the label (the dead track half is the bug).
 
 **What:** `.gitignore` ignores `.tmp-*`. **Why:** verification screenshots and one-off Playwright
 probes are written there and should never be staged.
+
+### D-077 - One customization panel beside the stage; purchase bar below
+
+**What:** the studio's right column lost its header card (product name, rating, price and the
+section chips) and its pinned footer. It is now a single scrolling panel, same 440/460 px width
+and the same `calc(100svh-108px)` height as the stage, holding every option section in order:
+colour, finish, engrave, decal, options, details. The decal upload moved into that panel with
+them. The price, dispatched line, quantity stepper, Save design and Add to cart moved out of the
+column into a full-width bar under the stage and panel. The product name stays as an `sr-only`
+`h1` so the page keeps a heading without spending layout space. The loading skeleton and its unit
+test follow the new shape (`100svh-150px` was never the real stage height anyway).
+
+**Why:** the header + footer ate most of the column, so only three sections fitted before
+scrolling and the decal/options/details grid sat far below the model. One panel beside the stage
+keeps every control within a scroll of the object and frees the space the brief asked for.
+
+**Alternatives rejected:** keeping the chips as in-panel navigation (needs a header row again, and
+the panel now starts with the first section); leaving the purchase footer pinned inside the panel
+(that was the space being reclaimed).
+
+### D-078 - Camera presets scale with the stage aspect
+
+**What:** `CameraRig` now measures the fitted model's bounding radius (`ModelShell` normalises the
+longest axis to 2.2 units), computes the distance at which that sphere fits the narrower of the
+vertical/horizontal field of view, and pushes every preset back by a uniform factor when the stage
+is narrower than the authored framing. Reset, preset glides, the mount/resize snap and the zoom
+bounds all use the scaled distance.
+
+**Why:** presets only considered the vertical FOV. Once the panel matches the stage height, a
+1080p screen gives a 692x972 stage and the mug was clipped left and right. The factor keeps the
+detail preset closer than the front preset and leaves wide, short stages exactly as they were.
+
+**Alternatives rejected:** per-preset absolute distances (loses the authored close-up); fitting the
+model to the canvas at render time (would fight the per-product `model.scale`).

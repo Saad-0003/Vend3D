@@ -6,7 +6,6 @@ import { Info, Stamp, SlidersHorizontal } from "lucide-react";
 import { DecalControls } from "@/components/studio/decal-controls";
 import { DecalDropzone } from "@/components/studio/controls/decal-dropzone";
 import { SectionCard } from "@/components/studio/studio-section-card";
-import { sectionsFor } from "@/components/studio/section-types";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -15,59 +14,10 @@ import type { Configuration } from "@/lib/products/configuration";
 import { clearDecalAsset, setDecalAsset } from "@/lib/products/decal-assets";
 
 /**
- * The customization block under the two columns: custom decal upload, the
- * product's extra options, and the details accordion. Every control here is
- * built from the product config.
+ * The decal, options and details sections of the customization panel. Each one
+ * is built from the product config; the panel owns their order and scrolling.
  */
-export function StudioCustomization({
-  product,
-  configuration,
-  onChange,
-  decalUrl,
-  onDecalChange,
-  reduced,
-}: {
-  product: ProductConfig;
-  configuration: Configuration;
-  onChange: (next: Configuration) => void;
-  decalUrl: string | null;
-  onDecalChange: () => void;
-  reduced: boolean;
-}) {
-  const chips = sectionsFor(product);
-
-  return (
-    <section aria-labelledby="customization-heading" className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2">
-        <span className="lux-eyebrow text-[var(--lime)]">Customize further</span>
-        <h2 id="customization-heading" className="lux-h2 lux-display text-[var(--ivory)]">
-          Decal, options and details
-        </h2>
-      </div>
-
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        {chips.includes("decal") ? (
-          <DecalPanel
-            product={product}
-            configuration={configuration}
-            onChange={onChange}
-            decalUrl={decalUrl}
-            onDecalChange={onDecalChange}
-            reduced={reduced}
-          />
-        ) : null}
-
-        {product.extras.length > 0 ? (
-          <OptionsPanel product={product} configuration={configuration} onChange={onChange} reduced={reduced} />
-        ) : null}
-
-        <DetailsPanel product={product} reduced={reduced} />
-      </div>
-    </section>
-  );
-}
-
-function DecalPanel({
+export function DecalPanel({
   product,
   configuration,
   onChange,
@@ -144,7 +94,7 @@ function DecalPanel({
   );
 }
 
-function OptionsPanel({
+export function OptionsPanel({
   product,
   configuration,
   onChange,
@@ -217,7 +167,7 @@ function ExtraRow({
   );
 }
 
-function DetailsPanel({ product, reduced }: { product: ProductConfig; reduced: boolean }) {
+export function DetailsPanel({ product, reduced }: { product: ProductConfig; reduced: boolean }) {
   const items: { id: string; label: string; body: ReactNode }[] = [
     { id: "materials", label: "Materials", body: product.details.materials },
     { id: "dimensions", label: "Dimensions", body: product.details.dimensions },
@@ -232,7 +182,6 @@ function DetailsPanel({ product, reduced }: { product: ProductConfig; reduced: b
       title="Details"
       description="Materials, care and how it reaches you."
       reduced={reduced}
-      className="lg:col-span-2"
     >
       <Accordion type="single" collapsible defaultValue="materials">
         {items.map((item) => (

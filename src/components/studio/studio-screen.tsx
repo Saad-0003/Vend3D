@@ -9,7 +9,6 @@ import { toast } from "sonner";
 
 import type { CanvasHandle } from "@/components/studio/three/product-canvas";
 import { useModelSource } from "@/components/studio/three/use-model-source";
-import { StudioCustomization } from "@/components/studio/studio-customization";
 import { StudioFooter } from "@/components/studio/studio-footer";
 import { StudioSidebar } from "@/components/studio/studio-sidebar";
 import { StudioStage } from "@/components/studio/studio-stage";
@@ -79,7 +78,6 @@ function StudioProduct({ product, catalog }: { product: ProductConfig; catalog: 
   const handle = useRef<CanvasHandle | null>(null);
 
   const totalCents = selectTotalCents(product, quantity);
-  const rating = catalog.find((p) => p.id === product.slug)?.rating ?? 5;
 
   // Rehydrate from localStorage, then apply `?color=`, in one effect so the
   // stored state is never overwritten by a stale default.
@@ -175,6 +173,8 @@ function StudioProduct({ product, catalog }: { product: ProductConfig; catalog: 
         </Link>
       </nav>
 
+      <h1 className="sr-only">{product.name}</h1>
+
       <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-8">
         <StudioStage
           product={product}
@@ -197,28 +197,18 @@ function StudioProduct({ product, catalog }: { product: ProductConfig; catalog: 
           product={product}
           configuration={configuration}
           onChange={(next) => update(product, next)}
+          decalUrl={decalUrl}
+          onDecalChange={() => setDecalUrl(getDecalAsset(product.slug)?.url ?? null)}
           reduced={reduced}
-          rating={rating}
-          price={formatCents(totalCents)}
-          footer={
-            <StudioFooter
-              quantity={quantity}
-              totalCents={totalCents}
-              onQuantity={setQuantity}
-              onAddToCart={handleAddToCart}
-              onSaveDesign={handleSaveDesign}
-            />
-          }
         />
       </div>
 
-      <StudioCustomization
-        product={product}
-        configuration={configuration}
-        onChange={(next) => update(product, next)}
-        decalUrl={decalUrl}
-        onDecalChange={() => setDecalUrl(getDecalAsset(product.slug)?.url ?? null)}
-        reduced={reduced}
+      <StudioFooter
+        quantity={quantity}
+        totalCents={totalCents}
+        onQuantity={setQuantity}
+        onAddToCart={handleAddToCart}
+        onSaveDesign={handleSaveDesign}
       />
 
       {suggestions.length > 0 ? (
