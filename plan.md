@@ -6,6 +6,16 @@
 
 ---
 
+## Implementation Style (revised Oct 2026)
+
+The project is built **UI-first, as vertical slices**: each prompt ships complete shopper-facing surfaces, and all data currently lives in **static files or localStorage** behind swap-ready seams — `AuthService` (`src/lib/auth/service.ts`, browser-local mock, D-051), `catalog` (`src/lib/catalog.ts`, D-019), and the cart / designs / orders / configurator zustand stores (D-040, D-041, D-048). New data goes behind an interface in the same pattern, with a localStorage implementation first.
+
+The server half (Prisma, Supabase, server actions, `middleware.ts`) is built **afterwards by replacing each seam's implementation, not the components**; component callers never import Prisma or Supabase directly. Every screen ships skeleton / empty / error / populated states, is responsive at 360 / 768 / 1280 px, and respects keyboard, aria and `prefers-reduced-motion` (D-050, D-057, D-058).
+
+Route and schema decisions already locked by earlier prompts are recorded in D-045 (`/customize` → `/products/[id]`), D-048 (client checkout island, `/order/[id]`), D-051 (mock auth), D-055–D-061 (info/legal templates, demo reviews, GLB sourcing and loading) and D-072 (GLBs bundled from `src/assets/models`). Checkbox totals after applying this revision: **33/191 ticked** (29/185 before it; 4 Phase 5 lines re-ticked and 6 new Phase 1B boxes added); phases 3–9 subsections below carry status tags — "(UI done, server pending)" or "(client-only)" — on lines whose work exists on the client seam, and the new Phase 1B (added between Phase 1 and Phase 2, unrenumbered) gates Phase 2.
+
+---
+
 ## 0. How to Use This Plan (Read First)
 
 1. Work through phases **in order**. Do not start phase N until phase N−1's acceptance criteria pass.
@@ -139,6 +149,27 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 - [x] `npm install && npm run dev` works from clean clone; all routes render placeholders; lint/typecheck green
 
+**Deviations to reconcile — accepted scope additions (revised Oct 2026)**
+
+- Shipped beyond this phase's original scope: the reviews page (D-057), the info pages on one shared template plus legal-page drafts (D-055/D-056), Lenis smooth scrolling, the landing motion layer (D-026), and the 3D hero orbit with click-to-cycle colourways (D-069).
+
+---
+
+## Phase 1B — UI Completion (added Oct 2026; inserted between Phase 1 and Phase 2, no renumbering)
+
+**Goal:** finish the shopper and admin UI on the existing client seams, so Phase 2 replaces implementations rather than screens. **Phase 2 starts only after U1–U6 are ticked.**
+
+**Tasks**
+
+- [ ] U1 `/orders` history and route cleanup — `/orders` reads the orders store as a real list; `/products` redirects to `/shop`; `/checkout/success` redirects to `/order/[id]`
+- [ ] U2 Studio completion — model load progress, fullscreen toggle, reload-retry ×3 on GLB failure, reset confirm dialog, unsaved-changes leave guard, numeric decal transform inputs
+- [ ] U3 Auth and session screens — `/forbidden`, forgot-password, check-email, session-expired dialog, a role field on the mock user, and `RequireAdmin`
+- [ ] U4 Admin shell and dashboard — sidebar layout and overview tiles on the same design system
+- [ ] U5 Admin products — list, create/edit form (price input in dollars→cents), model upload UI
+- [ ] U6 Admin orders — list, detail, and a status updater limited to the demo states
+
+> Note: Phase 2 (database) begins only once U1–U6 above are ticked. The admin screens (U4–U6) read from client seams and gain their server-backed implementations in Phase 10.
+
 ---
 
 ## Phase 2 — Database Schema, Supabase Project & Seed Data
@@ -177,6 +208,13 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 - [ ] `db:migrate` + `db:seed` green on empty DB; products visible via a temporary Prisma Studio check
 
+**Deviations to reconcile (revised Oct 2026)**
+
+- Write the zod schema for the **shipped Configuration v1** (`version`, `slug`, `parts{color, finish}`, `extras`, one nullable `decal` (name/zone/scale/rotation/offset/avoidSeams), one `engrave` (enabled/text/font/color/depthMm/sizePct)) — `src/lib/products/configuration.ts` is the live contract — and decide whether the DB stores it as JSON as-is.
+- The plan's original `DesignConfig` shape (`baseColor`, `material{roughness, metalness}`, `decals[]`, `texts[]`) is **deferred**, not migrated to.
+- Seed data already exists as static catalog + 4 bundled GLBs; `db:seed` must reproduce the products from `src/lib/catalog.ts` + `src/lib/products/config.ts` (models: Poly by Google CC BY 3.0 ×3 and MilkAndBanana CC0 — see `public/models/CREDITS.md`, D-059/D-060).
+- Env validation already ships (`src/env.ts`, D-003) but nothing consumes `getEnv()` yet; the server actions become its consumers.
+
 ---
 
 ## Phase 3 — Authentication & Profiles
@@ -192,28 +230,34 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 **Tasks**
 
-- [x] `/login`, `/signup` with email+password (react-hook-form + zod) — *done (D-051); "Continue with Google" is not built: with no Supabase behind it the button could only be a dead stub*
+- [x] `/login`, `/signup` with email+password (react-hook-form + zod) — *done (D-051); "Continue with Google" is not built: with no Supabase behind it the button could only be a dead stub* (UI done, server pending)
 - [ ] `middleware.ts`: refresh session; protect `/cart`, `/checkout`, `/orders`, `/designs`, `/admin` (redirect to `/login?next=...` and return after login) — *not built; `/account` is guarded client-side by `RequireAuth` (redirect + return after) until it exists (D-051)*
 - [ ] On first login, create `Profile` row (server action, service key, idempotent upsert) — *not built: no `prisma/` yet*
-- [x] Navbar reflects auth state (avatar + dropdown: My Designs, My Orders, Sign out) — *done: Account / Designs / Orders / Sign out in the popover (D-051)*
+- [x] Navbar reflects auth state (avatar + dropdown: My Designs, My Orders, Sign out) — *done: Account / Designs / Orders / Sign out in the popover (D-051)* (UI done, server pending)
 - [ ] Admin gate: `/admin/*` returns 403 UI unless `profile.role === 'admin'` (check server-side on every admin request — never trust a client flag) — *not built*
-- [ ] Sign out; session expiry handled gracefully (middleware refresh, server actions re-check auth and return 401 → client redirects to login) — *the UI part is wired (Sign out in the account menu); refresh and 401 handling need middleware*
+- [ ] Sign out; session expiry handled gracefully (middleware refresh, server actions re-check auth and return 401 → client redirects to login) — *the UI part is wired (Sign out in the account menu); refresh and 401 handling need middleware* (UI done, server pending)
 
 **Edge cases**
 
-- [x] OAuth user without displayName → derive from email prefix — *the mock derives a display name from the email local part when none is given (`displayNameFromEmail`), tested*
-- [x] Signup with existing email → friendly inline error, no account enumeration ("If this email exists…" style where applicable) — *done: sign-up says "already exists"; sign-in returns one identical message for unknown email and wrong password, so it is not an enumeration oracle (D-051)*
+- [x] OAuth user without displayName → derive from email prefix — *the mock derives a display name from the email local part when none is given (`displayNameFromEmail`), tested* (client-only)
+- [x] Signup with existing email → friendly inline error, no account enumeration ("If this email exists…" style where applicable) — *done: sign-up says "already exists"; sign-in returns one identical message for unknown email and wrong password, so it is not an enumeration oracle (D-051)* (client-only)
 - [ ] Email confirmation required vs autoconfirm: pick one, document in README; handle "check your inbox" state — *deferred to the Supabase wiring — there is no server to confirm against yet*
 - [ ] Session expires mid-checkout → cart preserved (it lives server-side from Phase 8), user returns after re-login — *not built: needs middleware + a server cart*
 
 **Tests**
 
-- [x] Unit: auth helper returns user/null correctly — *`tests/unit/auth-lib.test.ts` (29) and `tests/unit/auth-service.test.ts` (10)*
-- [x] Playwright: signup → logout → login flow; protected route redirects to login and back — *`tests/e2e/auth.spec.ts`, 10 tests × chromium + webkit*
+- [x] Unit: auth helper returns user/null correctly — *`tests/unit/auth-lib.test.ts` (29) and `tests/unit/auth-service.test.ts` (10)* (client-only)
+- [x] Playwright: signup → logout → login flow; protected route redirects to login and back — *`tests/e2e/auth.spec.ts`, 10 tests × chromium + webkit* (client-only)
 
 **Acceptance criteria**
 
-- [ ] Full auth round-trip works; non-admin cannot reach `/admin` (server-verified) — *the round-trip works behind the mock (D-051); the server-verified admin gate still needs Phase 2*
+- [ ] Full auth round-trip works; non-admin cannot reach `/admin` (server-verified) — *the round-trip works behind the mock (D-051); the server-verified admin gate still needs Phase 2* (UI done, server pending)
+
+**Deviations to reconcile (revised Oct 2026)**
+
+- Auth runs against the mock `AuthService` in `src/lib/auth/service.ts` (browser-local, never stores a password); the Supabase wiring replaces that one module, not the components — D-051.
+- No `middleware.ts` exists; `/account` is guarded client-side by `RequireAuth` (D-051). The mock user gains a **role** field in Phase 1B U3 so `RequireAdmin` and the admin gate have something to check before the server does it.
+- Email confirmation and Google OAuth stay deferred until the Supabase project exists (Phase 2/14).
 
 ---
 
@@ -223,15 +267,15 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 **Tasks**
 
-- [ ] `/products`: responsive grid (card: preview image, name, category badge, price, "Customize" CTA) with category filter tabs + text search (server-side via query params)
-- [ ] `/products/[slug]`: detail page — big preview, description, price, stock-less MVP notice if needed, primary CTA → `/customize/[productId]`
+- [ ] `/products`: responsive grid (card: preview image, name, category badge, price, "Customize" CTA) with category filter tabs + text search (server-side via query params) (client-only — shipped at `/shop`)
+- [ ] `/products/[slug]`: detail page — big preview, description, price, stock-less MVP notice if needed, primary CTA → `/customize/[productId]` (client-only — built as the studio at `/products/[id]`)
 - [ ] Caching: catalog list + detail via `unstable_cache` keyed by query; pages ISR with `revalidate = 300`; revalidate on admin product mutation (`revalidateTag('products')`)
-- [ ] Empty state (no products / no search results), loading skeletons, image `next/image` with proper sizes
-- [ ] Price formatting helper `formatCents(cents, currency)` — single source, unit-tested
+- [ ] Empty state (no products / no search results), loading skeletons, image `next/image` with proper sizes (client-only)
+- [ ] Price formatting helper `formatCents(cents, currency)` — single source, unit-tested (helper shipped in `src/lib/format.ts`; its unit test is pending)
 
 **Edge cases**
 
-- [ ] Unknown slug → 404 page (not a crash)
+- [ ] Unknown slug → 404 page (not a crash) (client-only — studio shows its not-found state)
 - [ ] `active=false` products hidden from catalog and direct URL → 404
 - [ ] Long product names/descriptions truncate cleanly; missing preview image → placeholder
 
@@ -245,6 +289,12 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 - [ ] Catalog renders from real DB data; Lighthouse-style sanity: catalog page TTFB served from cache on repeat visit
 
+**Deviations to reconcile (revised Oct 2026)**
+
+- The catalog route is **`/shop`** (URL-state filters, sort and ⌘K command search, D-037/D-038); `/products` still renders a placeholder and will redirect to `/shop` (Phase 1B U1).
+- `/products/[id]` **is** the studio screen (D-045); `/customize/[productId]` redirects to it keeping the query string.
+- `formatCents` lives in `src/lib/format.ts` (used across the app) but is not yet unit-tested; catalog data is the static `src/lib/catalog.ts` until this phase swaps `listProducts`'s body for the Prisma query.
+
 ---
 
 ## Phase 5 — 3D Viewer Core
@@ -253,29 +303,29 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 **Tasks**
 
-- [ ] `<ProductViewer>` client component: R3F `<Canvas>` with `dpr={[1, 1.75]}`, `<Suspense>` fallback (skeleton + spinner), `OrbitControls` (damped, zoom limits, pan disabled), `<Environment preset="city">`, soft contact shadows, `<Stage>`-style framing
+- [ ] `<ProductViewer>` client component: R3F `<Canvas>` with `dpr={[1, 1.75]}`, `<Suspense>` fallback (skeleton + spinner), `OrbitControls` (damped, zoom limits, pan disabled), `<Environment preset="city">`, soft contact shadows, `<Stage>`-style framing (client-only; remainder tracked in Phase 1B U2)
 - [ ] `useGLTF` with **Draco + meshopt** decoders configured; model preloading for catalog hover (optional, behind flag)
 - [ ] Camera reset button; fullscreen toggle; touch controls verified
-- [ ] **WebGL-unavailable fallback:** try/catch canvas creation → render static preview image + message "3D not supported in this browser" (detect via canvas `webgl` context probe)
-- [ ] **Model load failure:** `<ErrorBoundary>` around model → retry button (max 3) → fallback to preview image
+- [x] **WebGL-unavailable fallback:** try/catch canvas creation → render static preview image + message "3D not supported in this browser" (detect via canvas `webgl` context probe)
+- [ ] **Model load failure:** `<ErrorBoundary>` around model → retry button (max 3) → fallback to preview image (client-only; placeholder fallback shipped, retry ×3 pending)
 - [ ] Loading progress bar via drei `useProgress`
-- [ ] Dispose geometries/materials/textures on unmount (no GPU memory leaks across navigation)
+- [x] Dispose geometries/materials/textures on unmount (no GPU memory leaks across navigation)
 
 **Edge cases**
 
-- [ ] Slow network: 20s model-load timeout → error state (not infinite spinner)
-- [ ] Corrupt/404 GLB → error boundary, logged
+- [x] Slow network: 20s model-load timeout → error state (not infinite spinner)
+- [x] Corrupt/404 GLB → error boundary, logged
 - [ ] iOS Safari texture memory: cap texture size at 2048px; test on mobile viewport
 - [ ] Tab backgrounded/foregrounded — no context loss crash (`frameloop="demand"` or default, verify)
 
 **Tests**
 
-- [ ] Playwright: customizer canvas exists, no page errors, screenshot matches baseline (loose threshold)
+- [ ] Playwright: customizer canvas exists, no page errors, screenshot matches baseline (loose threshold) (client-only — `tests/e2e/three-d.spec.ts` ships; D-067 pins it Chromium-only against pixels)
 - [ ] Unit: fallback branch renders when WebGL probe mocked false
 
 **Acceptance criteria**
 
-- [ ] Any seeded product renders its model; orbit/zoom smooth; fallbacks verified by mocking
+- [ ] Any seeded product renders its model; orbit/zoom smooth; fallbacks verified by mocking (client-only; the WebGL-fallback branch is not mock-tested yet)
 
 ---
 
@@ -298,19 +348,19 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 **Tasks**
 
-- [ ] Zustand `useCustomizerStore`: holds current DesignConfig, undo/redo history (past/future stacks, cap 50), dirty flag
-- [ ] UI panel (right sidebar): color swatches + custom hex picker; material sliders (roughness/metalness); decal upload (PNG/JPG/SVG, ≤2 MB, client-side type+size validation); text input (≤30 chars, curated font list only); per-item transform controls (move/rotate/scale via drag on model + numeric inputs); delete per decal/text
-- [ ] Rendering: color via material tint; decals via drei `<Decal>`; text rendered to canvas texture then `<Decal>` (never raw HTML inside canvas)
-- [ ] Capture thumbnail: `canvas.toDataURL` snapshot (≥800px) for design library & cart display
+- [ ] Zustand `useCustomizerStore`: holds current DesignConfig, undo/redo history (past/future stacks, cap 50), dirty flag (client-only; per-slug stores, D-040; dirty flag pending)
+- [ ] UI panel (right sidebar): color swatches + custom hex picker; material sliders (roughness/metalness); decal upload (PNG/JPG/SVG, ≤2 MB, client-side type+size validation); text input (≤30 chars, curated font list only); per-item transform controls (move/rotate/scale via drag on model + numeric inputs); delete per decal/text (client-only; numeric transforms pending)
+- [ ] Rendering: color via material tint; decals via drei `<Decal>`; text rendered to canvas texture then `<Decal>` (never raw HTML inside canvas) (client-only)
+- [ ] Capture thumbnail: `canvas.toDataURL` snapshot (≥800px) for design library & cart display (client-only)
 - [ ] "Reset to defaults" with confirm dialog; unsaved-changes guard on route leave
-- [ ] Uploaded decal files → Supabase Storage `uploads/{userId}/...`; **textures loaded with `crossOrigin="anonymous"`**; storage bucket CORS configured (see architecture.md §6)
+- [ ] Uploaded decal files → Supabase Storage `uploads/{userId}/...`; **textures loaded with `crossOrigin="anonymous"`**; storage bucket CORS configured (see architecture.md §6) (client-only; object URLs in-memory, Storage pending)
 
 **Edge cases**
 
 - [ ] XSS: text content sanitized/escaped at render-to-texture; config strings validated with zod on save (server)
-- [ ] Decal upload: reject wrong MIME, >2 MB, or pixel dimensions >4096 (mobile GPU) with inline error
+- [ ] Decal upload: reject wrong MIME, >2 MB, or pixel dimensions >4096 (mobile GPU) with inline error (client-only; type + size shipped, pixel-dimension check pending)
 - [ ] Undo across decal deletion restores full state incl. image reference
-- [ ] Config schema `version` field — unknown version on load → migrate or reject with friendly message (never crash)
+- [ ] Config schema `version` field — unknown version on load → migrate or reject with friendly message (never crash) (client-only; unknown version falls back to safe defaults)
 - [ ] Upload succeeds but user abandons → orphan cleanup note in Phase 12 cron (acceptable for MVP: document it)
 
 **Tests**
@@ -331,9 +381,9 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 **Tasks**
 
-- [ ] Save dialog (name ≤50 chars) → server action validates DesignConfig (zod), stores row + uploads thumbnail to `thumbnails/{userId}/{designId}.png`
-- [ ] `/designs`: user's design grid (thumbnail, name, product, updated date), actions: **Open in customizer**, rename, duplicate, delete (confirm)
-- [ ] Opening a design loads config into customizer store and navigates to `/customize/[productId]?design=<id>`
+- [ ] Save dialog (name ≤50 chars) → server action validates DesignConfig (zod), stores row + uploads thumbnail to `thumbnails/{userId}/{designId}.png` (client-only)
+- [ ] `/designs`: user's design grid (thumbnail, name, product, updated date), actions: **Open in customizer**, rename, duplicate, delete (confirm) (client-only)
+- [ ] Opening a design loads config into customizer store and navigates to `/customize/[productId]?design=<id>` (client-only; lands on `/products/[id]?design=<id>`, D-045)
 - [ ] Autosave-lite: warn if navigating away with unsaved changes (dirty flag)
 - [ ] Pagination or load-more at 12+ designs
 
@@ -341,7 +391,7 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 - [ ] Design whose product was soft-deleted → card shows "Product unavailable", open disabled
 - [ ] Loading another user's design id → 403/404 (ownership check server-side, always)
-- [ ] Duplicate names allowed (don't over-constrain); name sanitization
+- [ ] Duplicate names allowed (don't over-constrain); name sanitization (client-only)
 - [ ] Thumbnail upload failure → save design without thumbnail, placeholder shown, warn user
 
 **Tests**
@@ -362,18 +412,18 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 **Tasks**
 
-- [ ] Add-to-cart from customizer ("Add current design to cart" — auto-saves design first if dirty) and from product detail (base product, no design)
-- [ ] CartItem stores `unitPriceCents` **snapshot** from product at add-time
-- [ ] `/cart`: line items (thumbnail/preview, name, design badge, qty stepper, remove), subtotal, shipping-free MVP note, CTA to checkout
-- [ ] Zustand cart slice mirrors server state for navbar badge; rehydrates from server on login/navigation
-- [ ] Quantity stepper 1–10; optimistic update with rollback on server error; merge duplicates (same product+design → qty+1)
+- [ ] Add-to-cart from customizer ("Add current design to cart" — auto-saves design first if dirty) and from product detail (base product, no design) (client-only)
+- [ ] CartItem stores `unitPriceCents` **snapshot** from product at add-time (client-only)
+- [ ] `/cart`: line items (thumbnail/preview, name, design badge, qty stepper, remove), subtotal, shipping-free MVP note, CTA to checkout (client-only)
+- [ ] Zustand cart slice mirrors server state for navbar badge; rehydrates from server on login/navigation (client-only)
+- [ ] Quantity stepper 1–10; optimistic update with rollback on server error; merge duplicates (same product+design → qty+1) (client-only)
 
 **Edge cases**
 
 - [ ] Price changed since add-to-cart → cart shows a "price updated" notice and new price (server re-validates at checkout too)
 - [ ] Cart item referencing soft-deleted product → row flagged unavailable, excluded from checkout, removable
-- [ ] Double-click add → single line item (server upsert on (userId, productId, designId) unique)
-- [ ] Cart badge never stale after login/logout (clear local state on auth change)
+- [ ] Double-click add → single line item (server upsert on (userId, productId, designId) unique) (client-only)
+- [ ] Cart badge never stale after login/logout (clear local state on auth change) (client-only)
 
 **Tests**
 
@@ -393,21 +443,21 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 **Tasks**
 
-- [x] `/checkout`: order summary + **demo card form** (cardholder name, card number, expiry MM/YY, CVC) accepting **Visa or Mastercard** only; visible banner: "Demo checkout — no real payment is taken. Do not enter real card details." — *done as a 3-step flow (details → payment → review) with a persistent "Demo payment, no real charge" banner; client store instead of a server action (D-048)*
-- [x] Pure helpers in `src/lib/payment/card.ts`: Luhn check, brand detect (Visa: starts with 4; Mastercard: 51–55 or 2221–2720), expiry-not-in-past, CVC 3 digits; live brand icon + input formatting (spaces) in the form
-- [x] **Card data stays in the browser.** Card number, expiry and CVC are validated client-side only and are NEVER sent to the server, stored, or logged. Server action `placeOrder` receives only `{ checkoutKey, cardBrand, cardLast4 }` — *the store keeps only brand + last4; the payment step's form is unmounted and reset when the step is left (D-048)*
+- [x] `/checkout`: order summary + **demo card form** (cardholder name, card number, expiry MM/YY, CVC) accepting **Visa or Mastercard** only; visible banner: "Demo checkout — no real payment is taken. Do not enter real card details." — *done as a 3-step flow (details → payment → review) with a persistent "Demo payment, no real charge" banner; client store instead of a server action (D-048)* (UI done, server pending)
+- [x] Pure helpers in `src/lib/payment/card.ts`: Luhn check, brand detect (Visa: starts with 4; Mastercard: 51–55 or 2221–2720), expiry-not-in-past, CVC 3 digits; live brand icon + input formatting (spaces) in the form (client-only)
+- [x] **Card data stays in the browser.** Card number, expiry and CVC are validated client-side only and are NEVER sent to the server, stored, or logged. Server action `placeOrder` receives only `{ checkoutKey, cardBrand, cardLast4 }` — *the store keeps only brand + last4; the payment step's form is unmounted and reset when the step is left (D-048)* (UI done, server pending)
 - [ ] `placeOrder` server action (auth + rate limit + zod): loads cart from DB, **recomputes prices from DB** (never trust client totals), then in one transaction creates Order (`status=PAID`, `paymentMethod=DEMO_CARD`, brand + last4) + OrderItems (with `designConfigSnapshot`) and clears the cart
-- [x] **Idempotency:** `checkoutKey` = client-generated UUID per checkout attempt, unique on Order; a repeat call returns the existing order. Submit button disables + shows "Processing…" (simulated ~1.5s delay for demo feel) — *idempotency lives in the orders store until the server action lands (D-048)*
+- [x] **Idempotency:** `checkoutKey` = client-generated UUID per checkout attempt, unique on Order; a repeat call returns the existing order. Submit button disables + shows "Processing…" (simulated ~1.5s delay for demo feel) — *idempotency lives in the orders store until the server action lands (D-048)* (UI done, server pending)
 - [ ] `/checkout/success?order=<id>`: confirmation message ("Order placed — demo payment, no money was charged") with order summary; page only **reads** the order (ownership-checked). `/checkout/cancelled` = simple "no charge made, cart kept" page — *built as the prompt's read-only `/order/[id]` instead (D-048)*
 - [ ] `/orders`: order history (id, date, items w/ thumbnails, total, status badge); `/orders/[id]` detail
 - [ ] Order confirmation "email" = documented stub (log + TODO) — out of scope to send real email
 
 **Edge cases**
 
-- [x] Double-click / network retry / two tabs → one order only (unique `checkoutKey`) — *store-level idempotency, tested; the DB unique constraint arrives with the migration*
-- [x] Invalid card (bad Luhn, expired, non-Visa/Mastercard, short CVC) → inline field errors, nothing sent to server
+- [x] Double-click / network retry / two tabs → one order only (unique `checkoutKey`) — *store-level idempotency, tested; the DB unique constraint arrives with the migration* (client-only)
+- [x] Invalid card (bad Luhn, expired, non-Visa/Mastercard, short CVC) → inline field errors, nothing sent to server (client-only)
 - [ ] Product soft-deleted between cart and payment → order still created from **snapshotted** config/price for available items; unavailable items excluded and the user is told (order history integrity)
-- [x] Empty cart at checkout → redirect to `/cart`
+- [x] Empty cart at checkout → redirect to `/cart` (client-only)
 - [ ] Local currency: MVP single currency (USD), documented
 
 **Tests**
@@ -415,11 +465,18 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 - [x] Unit: Luhn, brand detection, expiry and CVC validation (valid + invalid fixtures) — *`tests/unit/payment-card.test.ts`*
 - [ ] Integration: `placeOrder` called twice with same `checkoutKey` → order created exactly once — *store-level version tested; server action needs Phase 2*
 - [ ] Integration: checkout rejects tampered client-side total; server payload schema rejects any extra card fields (number/CVC/expiry) — *totals are recomputed from the cart in `lib/checkout/order.ts`; no server payload exists yet*
-- [x] Playwright: full flow login → customize → cart → demo card 4242 4242 4242 4242 → success page shows order — *cart → checkout → `/order/[id]`; the login step is not built (Phase 3)*
+- [x] Playwright: full flow login → customize → cart → demo card 4242 4242 4242 4242 → success page shows order — *cart → checkout → `/order/[id]`; the login step is not built (Phase 3)* (client-only)
 
 **Acceptance criteria**
 
 - [ ] End-to-end demo purchase green in Playwright; duplicate submit/retry safe; no card data present in any server payload, DB row or log
+
+**Deviations to reconcile (revised Oct 2026)**
+
+- Orders live in the zustand `orders-store` (localStorage) with status **"Placed"**; the planned `PAID`/`DEMO_CARD` enum and the DB writer arrive with Phase 2 + the `placeOrder` action (D-048). "Placed" maps to `PAID` semantics at migration time.
+- Confirmation route is `/order/[id]` (read-only); `/checkout/success` and `/checkout/cancelled` were not built — `/checkout/success` will redirect to `/order/[id]` (Phase 1B U1).
+- `OrderRecord` is a superset of ARCHITECTURE.md §5's `Order` table (address, subtotal, shipping, `shippingMethodId`); the migration must add those columns or a shipping-address table, plus the `userId` FK and `paymentMethod`.
+- Totals are recomputed from the cart in integer cents by `lib/checkout/order.ts`; the planned DB cross-check replaces the store body, not its callers.
 
 ---
 
@@ -482,6 +539,12 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 **Acceptance criteria**
 
 - [ ] Storefront repeat-visit loads cached; customizer chunk loads on demand; models ≤ ~2 MB each optimized
+
+**Deviations to reconcile (revised Oct 2026)**
+
+- `npm run optimize:models` points at `scripts/optimize-models.mjs`, which **does not exist** (D-007) — either create the script or remove the npm script; tracked here until one happens.
+- The four GLBs ship bundled via webpack `asset/resource` from `src/assets/models` (D-072) with **no Draco/meshopt compression** (D-061); run the pipeline over these sources or re-baseline the plan's size budget.
+- The R3F canvases already load through `next/dynamic` with `ssr: false` (studio stage and hero), which is this phase's code-splitting requirement met early.
 
 ---
 
@@ -556,6 +619,14 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 **Acceptance criteria**
 
 - [ ] Instructor-flow passes on production URL from a fresh incognito session
+
+---
+
+## Revised Build Order (revised Oct 2026)
+
+**Phase 1B (U1–U6) → Phase 2 → Phase 3 (server half) → Phase 4 → Phases 7 / 8 / 9 (server halves) → Phase 10 → Phase 11 → Phase 12 → Phase 13 → Phase 14.**
+
+Phases 5 and 6 are effectively carried inside the shipped studio screen: their client leftovers are Phase 1B U2, and their server-adjacent items (decals into Storage, server-side config zod, rate limiting on saves/uploads) land with Phases 2 and 12. The original phase numbering above is unchanged; Phase 1B only gates the start of Phase 2.
 
 ---
 
