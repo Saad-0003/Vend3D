@@ -93,7 +93,8 @@ export function StageWithSidebarSkeleton({ className }: { className?: string }) 
           <Skeleton className="h-32 w-full rounded-[var(--card-radius)]" />
         </div>
       </div>
-      <Skeleton className="h-24 w-full rounded-[var(--card-radius)]" />
+      <Skeleton className="h-32 w-full rounded-[var(--card-radius)]" />
+      <Skeleton className="h-40 w-full rounded-[var(--card-radius)]" />
       <div className="flex flex-col gap-6">
         <Skeleton className="h-3 w-32 rounded-full" />
         <ul className="flex gap-4 overflow-hidden" aria-label="Loading suggestions">

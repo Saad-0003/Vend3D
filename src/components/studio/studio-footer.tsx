@@ -14,17 +14,21 @@ export const QTY_MIN = 1;
 export const QTY_MAX = 10;
 
 /**
- * The purchase bar under the stage and customization panel: price, quantity,
- * save design and add to cart. Price and quantity come in as values; this
- * component never computes money. On mobile it sticks to the viewport bottom.
+ * The purchase bar under the stage and customization panel: product line, price,
+ * quantity, save design and add to cart. Price and quantity come in as values;
+ * this component never computes money. On mobile it sticks to the viewport bottom.
  */
 export function StudioFooter({
+  name,
+  description,
   quantity,
   totalCents,
   onQuantity,
   onAddToCart,
   onSaveDesign,
 }: {
+  name: string;
+  description: string;
   quantity: number;
   totalCents: number;
   onQuantity: (qty: number) => void;
@@ -33,61 +37,75 @@ export function StudioFooter({
 }) {
   return (
     <div className="rounded-[var(--card-radius)] border border-[var(--hairline)] bg-[var(--surface-1)] p-4 [box-shadow:var(--inner-highlight)] max-lg:sticky max-lg:bottom-0 max-lg:z-30 sm:p-5">
-      <div className="flex flex-wrap items-center gap-4 lg:flex-nowrap lg:justify-between">
-        <div className="flex flex-col gap-1">
-          <span
-            className="lux-mono lux-tabular flex items-baseline text-[20px] text-[var(--ivory)]"
-            aria-live="polite"
-            aria-label={`Total ${formatCents(totalCents)}`}
-          >
-            <span aria-hidden>$</span>
-            <NumberTicker value={totalCents / 100} decimalPlaces={2} startValue={totalCents / 100} />
-          </span>
-          <span className="lux-mono text-[10px] tracking-[0.16em] text-[var(--faint)] uppercase">
-            Dispatched in 48 hours
-          </span>
+      <div className="flex flex-col gap-4">
+        <div className="flex min-w-0 flex-col gap-1">
+          <h1 className="lux-display text-[22px] leading-[1.1] text-[var(--ivory)]">{name}</h1>
+          <p className="text-[14px] leading-[1.5] text-[var(--muted)]">{description}</p>
         </div>
 
-        <div className="flex items-center gap-2" role="group" aria-label="Quantity">
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            aria-label="Decrease quantity"
-            disabled={quantity <= QTY_MIN}
-            onClick={() => onQuantity(quantity - 1)}
-            className="size-11 rounded-full"
-          >
-            <Minus className="size-4" strokeWidth={1.5} />
-          </Button>
-          <span className="lux-mono lux-tabular w-8 text-center text-[15px] text-[var(--ivory)]" aria-live="polite">
-            {quantity}
-          </span>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            aria-label="Increase quantity"
-            disabled={quantity >= QTY_MAX}
-            onClick={() => onQuantity(quantity + 1)}
-            className="size-11 rounded-full"
-          >
-            <Plus className="size-4" strokeWidth={1.5} />
-          </Button>
-        </div>
+        <div className="flex flex-wrap items-center gap-4 lg:flex-nowrap lg:justify-between">
+          <div className="flex flex-col gap-1">
+            <span
+              className="lux-mono lux-tabular flex items-baseline text-[20px] text-[var(--ivory)]"
+              aria-live="polite"
+              aria-label={`Total ${formatCents(totalCents)}`}
+            >
+              <span aria-hidden>$</span>
+              <NumberTicker
+                value={totalCents / 100}
+                decimalPlaces={2}
+                startValue={totalCents / 100}
+              />
+            </span>
+            <span className="lux-mono text-[10px] tracking-[0.16em] text-[var(--faint)] uppercase">
+              Dispatched in 48 hours
+            </span>
+          </div>
 
-        <div className="flex flex-1 items-center justify-end gap-3">
-          <SaveDesignButton onSave={onSaveDesign} />
-          <ShimmerButton
-            onClick={onAddToCart}
-            shimmerColor="#0a0a0b"
-            shimmerDuration="4s"
-            background="#c6f135"
-            borderRadius="999px"
-            className="h-12 px-7 text-[15px] font-medium text-[var(--ink)]"
-          >
-            Add to cart
-          </ShimmerButton>
+          <div className="flex items-center gap-2" role="group" aria-label="Quantity">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              aria-label="Decrease quantity"
+              disabled={quantity <= QTY_MIN}
+              onClick={() => onQuantity(quantity - 1)}
+              className="size-11 rounded-full"
+            >
+              <Minus className="size-4" strokeWidth={1.5} />
+            </Button>
+            <span
+              className="lux-mono lux-tabular w-8 text-center text-[15px] text-[var(--ivory)]"
+              aria-live="polite"
+            >
+              {quantity}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              aria-label="Increase quantity"
+              disabled={quantity >= QTY_MAX}
+              onClick={() => onQuantity(quantity + 1)}
+              className="size-11 rounded-full"
+            >
+              <Plus className="size-4" strokeWidth={1.5} />
+            </Button>
+          </div>
+
+          <div className="flex flex-1 items-center justify-end gap-3">
+            <SaveDesignButton onSave={onSaveDesign} />
+            <ShimmerButton
+              onClick={onAddToCart}
+              shimmerColor="#0a0a0b"
+              shimmerDuration="4s"
+              background="#c6f135"
+              borderRadius="999px"
+              className="h-12 px-7 text-[15px] font-medium text-[var(--ink)]"
+            >
+              Add to cart
+            </ShimmerButton>
+          </div>
         </div>
       </div>
     </div>
@@ -116,8 +134,14 @@ function SaveDesignButton({ onSave }: { onSave: (name: string) => void }) {
           Save design
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="lux flex w-72 flex-col gap-3 rounded-[var(--inner-radius)] bg-[var(--surface-2)] p-4">
-        <label htmlFor="design-name" className="lux-mono text-[11px] tracking-[0.16em] text-[var(--muted)] uppercase">
+      <PopoverContent
+        align="end"
+        className="lux flex w-72 flex-col gap-3 rounded-[var(--inner-radius)] bg-[var(--surface-2)] p-4"
+      >
+        <label
+          htmlFor="design-name"
+          className="lux-mono text-[11px] tracking-[0.16em] text-[var(--muted)] uppercase"
+        >
           Design name
         </label>
         <Input
@@ -131,7 +155,11 @@ function SaveDesignButton({ onSave }: { onSave: (name: string) => void }) {
           }}
           className="h-11 rounded-full bg-[var(--surface-3)] px-4 text-[var(--ivory)]"
         />
-        <Button type="button" onClick={submit} className="h-11 rounded-full bg-[var(--ivory)] text-[var(--ink)] hover:bg-[var(--ivory)]/90">
+        <Button
+          type="button"
+          onClick={submit}
+          className="h-11 rounded-full bg-[var(--ivory)] text-[var(--ink)] hover:bg-[var(--ivory)]/90"
+        >
           Save
         </Button>
       </PopoverContent>

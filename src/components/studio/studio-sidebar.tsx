@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Gauge, Palette, Type } from "lucide-react";
 
-import { DecalPanel, DetailsPanel, OptionsPanel } from "@/components/studio/studio-customization";
+import { DecalPanel, OptionsPanel } from "@/components/studio/studio-customization";
 import { EngraveControl } from "@/components/studio/controls/engrave-control";
 import { FinishControl } from "@/components/studio/controls/finish-control";
 import { HueColorControl, hueColor } from "@/components/studio/controls/hue-color-control";
@@ -38,7 +38,8 @@ export function StudioSidebar({
   onDecalChange: () => void;
   reduced: boolean;
 }) {
-  const sections = sectionsFor(product);
+  // Details renders below the purchase bar, not inside this panel.
+  const sections = sectionsFor(product).filter((id) => id !== "details");
 
   return (
     <aside className="flex w-full min-w-0 flex-col lg:sticky lg:top-[84px] lg:h-[calc(100svh-108px)] lg:w-[440px] lg:shrink-0 xl:w-[460px]">
@@ -46,64 +47,48 @@ export function StudioSidebar({
         data-lenis-prevent
         className="studio-scroll flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-2 pb-2 [scrollbar-color:var(--hairline-strong)_transparent] [scrollbar-width:thin]"
       >
-        {sections.map((id) => {
-          switch (id) {
-            case "colour":
-              return (
-                <ColourSection
-                  key={id}
-                  product={product}
-                  configuration={configuration}
-                  onChange={onChange}
-                  reduced={reduced}
-                />
-              );
-            case "finish":
-              return (
-                <FinishSection
-                  key={id}
-                  product={product}
-                  configuration={configuration}
-                  onChange={onChange}
-                  reduced={reduced}
-                />
-              );
-            case "engrave":
-              return (
-                <EngraveSection
-                  key={id}
-                  product={product}
-                  configuration={configuration}
-                  onChange={onChange}
-                  reduced={reduced}
-                />
-              );
-            case "decal":
-              return (
-                <DecalPanel
-                  key={id}
-                  product={product}
-                  configuration={configuration}
-                  onChange={onChange}
-                  decalUrl={decalUrl}
-                  onDecalChange={onDecalChange}
-                  reduced={reduced}
-                />
-              );
-            case "options":
-              return (
-                <OptionsPanel
-                  key={id}
-                  product={product}
-                  configuration={configuration}
-                  onChange={onChange}
-                  reduced={reduced}
-                />
-              );
-            case "details":
-              return <DetailsPanel key={id} product={product} reduced={reduced} />;
-          }
-        })}
+        {sections.includes("colour") ? (
+          <ColourSection
+            product={product}
+            configuration={configuration}
+            onChange={onChange}
+            reduced={reduced}
+          />
+        ) : null}
+        {sections.includes("finish") ? (
+          <FinishSection
+            product={product}
+            configuration={configuration}
+            onChange={onChange}
+            reduced={reduced}
+          />
+        ) : null}
+        {sections.includes("engrave") ? (
+          <EngraveSection
+            product={product}
+            configuration={configuration}
+            onChange={onChange}
+            reduced={reduced}
+          />
+        ) : null}
+        {sections.includes("decal") ? (
+          <DecalPanel
+            product={product}
+            configuration={configuration}
+            onChange={onChange}
+            decalUrl={decalUrl}
+            onDecalChange={onDecalChange}
+            reduced={reduced}
+          />
+        ) : null}
+        {sections.includes("options") ? (
+          <OptionsPanel
+            product={product}
+            configuration={configuration}
+            onChange={onChange}
+            reduced={reduced}
+          />
+        ) : null}
       </div>
     </aside>
   );

@@ -9,6 +9,7 @@ import { toast } from "sonner";
 
 import type { CanvasHandle } from "@/components/studio/three/product-canvas";
 import { useModelSource } from "@/components/studio/three/use-model-source";
+import { DetailsPanel } from "@/components/studio/studio-customization";
 import { StudioFooter } from "@/components/studio/studio-footer";
 import { StudioSidebar } from "@/components/studio/studio-sidebar";
 import { StudioStage } from "@/components/studio/studio-stage";
@@ -173,8 +174,6 @@ function StudioProduct({ product, catalog }: { product: ProductConfig; catalog: 
         </Link>
       </nav>
 
-      <h1 className="sr-only">{product.name}</h1>
-
       <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-8">
         <StudioStage
           product={product}
@@ -204,12 +203,16 @@ function StudioProduct({ product, catalog }: { product: ProductConfig; catalog: 
       </div>
 
       <StudioFooter
+        name={product.name}
+        description={product.description}
         quantity={quantity}
         totalCents={totalCents}
         onQuantity={setQuantity}
         onAddToCart={handleAddToCart}
         onSaveDesign={handleSaveDesign}
       />
+
+      <DetailsPanel product={product} reduced={reduced} />
 
       {suggestions.length > 0 ? (
         <section aria-labelledby="also-like" className="flex flex-col gap-6">

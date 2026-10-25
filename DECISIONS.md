@@ -1188,3 +1188,26 @@ detail preset closer than the front preset and leaves wide, short stages exactly
 
 **Alternatives rejected:** per-preset absolute distances (loses the authored close-up); fitting the
 model to the canvas at render time (would fight the per-product `model.scale`).
+
+### D-079 - Details below the bar again; product line inside the purchase bar
+
+**What:** the Details card left the customization panel and is full width again, directly under the
+purchase bar and above the suggestions. `StudioSidebar` filters `details` out of `sectionsFor` and
+renders the remaining five sections as explicit conditionals (no switch with a dead case). The
+purchase bar now opens with the product name — the page's visible `h1`, replacing the `sr-only` one
+— and a one-line description, both above the price. `ProductConfig` gained `description: string`
+(one factual line per product), deliberately not a copy of `details.materials` so the accordion does
+not repeat the bar verbatim. Skeleton updated: taller bar plus a details card.
+
+**Why:** the panel is for controls; the details are read after the decision to buy, so they read
+better next to the price and stay full width where the accordion has room. The bar was only a number
+and two buttons — without the name it was unclear what the total refers to once scrolled past the
+model.
+
+**Alternatives rejected:** keeping details in the panel (forces a long scroll past controls for
+reference copy, and it was never a customization); reusing `details.materials` as the bar copy
+(repeats the Materials accordion on the same screen); hiding the description under `sm` (measured:
+saves only ~25 px at 360 px, so the line stays on phones too). At 360 px the sticky bar is ~272 px
+tall; accepted, since the name, total, quantity and both actions must stay one tap away while the
+panel scrolls.
+

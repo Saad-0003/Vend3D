@@ -75,6 +75,8 @@ export type ExtraConfig = {
 export type ProductConfig = {
   slug: string;
   name: string;
+  /** One line shown in the purchase bar; distinct from the details accordion copy. */
+  description: string;
   /** Integer cents, copied from the catalog so the configurator never drifts. */
   priceCents: number;
   category: Product["category"];
@@ -119,6 +121,7 @@ const bottle = catalogProduct("insulated-steel-bottle");
 const teeConfig: ProductConfig = {
   slug: tee.id,
   name: tee.name,
+  description: "260 gsm combed cotton with a boxy, dropped-shoulder cut.",
   priceCents: tee.priceCents,
   category: tee.category,
   placeholder: "tee",
@@ -198,6 +201,7 @@ const teeConfig: ProductConfig = {
 const mugConfig: ProductConfig = {
   slug: mug.id,
   name: mug.name,
+  description: "Stoneware glazed by hand for a soft luna sheen.",
   priceCents: mug.priceCents,
   category: mug.category,
   placeholder: "mug",
@@ -285,6 +289,7 @@ const mugConfig: ProductConfig = {
 const capConfig: ProductConfig = {
   slug: cap.id,
   name: cap.name,
+  description: "Six-panel cotton twill with a pre-curved brim.",
   priceCents: cap.priceCents,
   category: cap.category,
   placeholder: "cap",
@@ -360,6 +365,7 @@ const capConfig: ProductConfig = {
 const bottleConfig: ProductConfig = {
   slug: bottle.id,
   name: bottle.name,
+  description: "Vacuum-insulated brushed steel, 750 ml.",
   priceCents: bottle.priceCents,
   category: bottle.category,
   placeholder: "bottle",
