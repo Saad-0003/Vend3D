@@ -6,10 +6,8 @@ import { LayoutDashboard, PackageOpen, ShoppingBag } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
- * The sidebar's three destinations (plan.md Phase 1B U4). The dashboard and,
- * as of U5, the products screen are built; Orders renders as a visible "Soon"
- * entry until U6 — the phase that builds it is its disabled label, so the
- * roadmap stays legible without stubs pretending to work (AGENTS §3 scope).
+ * The sidebar's three destinations (plan.md Phase 1B U4), all built as of U6;
+ * `BUILT_HREFS` stays for the pattern (future nav entries below the MVP).
  */
 export type AdminNavItem = {
   href: string;
@@ -24,7 +22,7 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
 ];
 
 /** Routes whose screens exist. Products joined in U5; Orders in U6. */
-const BUILT_HREFS = new Set(["/admin", "/admin/products"]);
+const BUILT_HREFS = new Set(["/admin", "/admin/products", "/admin/orders"]);
 
 /** Only built routes can be active; deep links (new, [id]) light their section. */
 function isActive(pathname: string | null, item: AdminNavItem): boolean {

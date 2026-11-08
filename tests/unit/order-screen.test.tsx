@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 
 import { OrderScreen } from "@/components/order/order-screen";
+import { OrderTimeline } from "@/components/order/order-timeline";
 import { buildOrderRecord } from "@/lib/checkout/order";
 import { defaultConfiguration } from "@/lib/products/configuration";
 import { getProductConfig } from "@/lib/products/config";
@@ -79,20 +80,40 @@ describe("OrderScreen", () => {
     expect(screen.getByText("Dispatch within 48 hours")).toBeInTheDocument();
   });
 
-  it("shows all four fulfilment stages with only the first active", () => {
+  it("shows the demo fulfilment stages with only the current one active", () => {
     render(<OrderScreen id={ORDER_ID} />);
 
     const progress = screen.getByRole("list", { name: "Order progress" });
     const stages = within(progress).getAllByRole("listitem");
-    expect(stages.map((li) => li.textContent)).toEqual(["Placed", "Proofing", "Production", "Dispatched"]);
+    expect(stages.map((li) => li.textContent)).toEqual(["Placed", "Processing", "Shipped", "Delivered"]);
 
     // The first stage is the active one; the rest stay dim because the record
-    // only attests to "Placed".
+    // only attests to "Placed" until the admin advances it (U6).
     const dots = within(progress).getAllByRole("listitem").map((li) => li.querySelector("[data-active]"));
     expect(dots[0]).toHaveAttribute("data-active", "true");
     expect(dots[0]!.className).toContain("bg-[var(--lime)]");
     expect(dots[1]).toHaveAttribute("data-active", "false");
     expect(dots[1]!.className).toContain("bg-[var(--surface-3)]");
+  });
+
+  it("retires stages as the admin advances the status (U6)", () => {
+    render(<OrderTimeline status="Shipped" />);
+
+    const progress = screen.getByRole("list", { name: "Order progress" });
+    const dots = within(progress).getAllByRole("listitem").map((li) => li.querySelector("[data-active]"));
+    expect(dots.map((dot) => dot!.getAttribute("data-active"))).toEqual([
+      "false",
+      "false",
+      "true",
+      "false",
+    ]);
+  });
+
+  it("replaces the ladder with an honest cancelled note", () => {
+    render(<OrderTimeline status="Cancelled" />);
+
+    expect(screen.getByText("Cancelled")).toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "Order progress" })).not.toBeInTheDocument();
   });
 
   it("summarises the order with items, chips, address and integer-cent totals", () => {

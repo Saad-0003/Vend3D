@@ -17,7 +17,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { type AdminOverview, type AdminOrderRow } from "@/lib/admin/overview";
 import { adminService } from "@/lib/admin/service";
@@ -92,22 +91,25 @@ function DashboardContent({ overview }: { overview: AdminOverview }) {
         <StatCard label="Saved designs" value={String(overview.designCount)} icon={<Shapes className="size-4" strokeWidth={1.5} aria-hidden />} />
       </section>
 
-      {/* U5 shipped the products screen, so "New product" is a real link now;
-          "View all orders" stays Soon until U6 (same honesty as the sidebar). */}
-      <TooltipProvider>
-        <div className="flex flex-wrap items-center gap-3" role="group" aria-label="Quick actions">
-          <Button
-            asChild
-            className="h-11 rounded-full bg-[var(--ivory)] px-6 text-[15px] text-[var(--ink)] hover:bg-[var(--ivory)]/90"
-          >
-            <Link href="/admin/products/new" data-testid="admin-quick-new-product">
-              <Plus className="mr-1.5 size-4" strokeWidth={1.5} aria-hidden />
-              New product
-            </Link>
-          </Button>
-          <SoonButton label="View all orders" />
-        </div>
-      </TooltipProvider>
+      <div className="flex flex-wrap items-center gap-3" role="group" aria-label="Quick actions">
+        <Button
+          asChild
+          className="h-11 rounded-full bg-[var(--ivory)] px-6 text-[15px] text-[var(--ink)] hover:bg-[var(--ivory)]/90"
+        >
+          <Link href="/admin/products/new" data-testid="admin-quick-new-product">
+            <Plus className="mr-1.5 size-4" strokeWidth={1.5} aria-hidden />
+            New product
+          </Link>
+        </Button>
+        <Button
+          asChild
+          variant="outline"
+          className="h-11 rounded-full px-6 text-[15px]"
+          data-testid="admin-quick-orders"
+        >
+          <Link href="/admin/orders">View all orders</Link>
+        </Button>
+      </div>
 
       <section aria-label="Recent orders" className="flex flex-col gap-5">
         <div className="flex items-baseline justify-between gap-3">
@@ -186,33 +188,6 @@ function StatCard({
   );
 }
 
-/**
- * Disabled-with-tooltip, not a hidden action: the orders list arrives in U6 —
- * the tooltip says exactly that, so the planning intent stays visible instead
- * of the row silently doing nothing.
- */
-function SoonButton({ label }: { label: string }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        {/* span wrapper: a `disabled` button suppresses pointer events, so
-            radix's tooltip would never fire otherwise. */}
-        <span tabIndex={-1} className="inline-flex">
-          <Button disabled variant="outline" className="h-11 rounded-full px-5 text-[var(--muted)]">
-            {label}
-            <span className="lux-mono ml-2 rounded-full border border-[var(--hairline)] px-1.5 py-0.5 text-[9px] tracking-[0.14em] text-[var(--muted)] uppercase">
-              Soon
-            </span>
-          </Button>
-        </span>
-      </TooltipTrigger>
-      <TooltipContent side="bottom" className="lux text-[12px]">
-        Ships with Orders (U6)
-      </TooltipContent>
-    </Tooltip>
-  );
-}
-
 const statusChipClass =
   "lux-mono rounded-full border-[color-mix(in_srgb,var(--lime)_35%,transparent)] bg-[var(--lime-glow)] px-2.5 py-1 text-[10px] tracking-[0.14em] text-[var(--lime)] uppercase";
 
@@ -220,8 +195,7 @@ function AdminOrderTableRow({ order }: { order: AdminOrderRow }) {
   return (
     <TableRow className="group">
       <TableCell className="pl-5">
-        {/* Detail view arrives with the orders list (U6); the link is real
-            once that screen exists, so the id itself stays the link target. */}
+        {/* The detail view has shipped (U6), so the id is a plain real link. */}
         <Link
           href={`/admin/orders/${order.id}`}
           title={order.id}

@@ -47,7 +47,7 @@ export function OrderScreen({ id }: { id: string }) {
         ) : (
           <>
             <OrderConfirmation order={order} />
-            <OrderProgress />
+            <OrderProgress status={order.status} />
             <OrderSummary order={order} />
             <OrderActions />
           </>
@@ -65,10 +65,12 @@ function OrderConfirmation({ order }: { order: OrderRecord }) {
 
       <div className="flex flex-col gap-3">
         <h1 id="order-confirmed" className="lux-h2 lux-display text-[var(--ivory)]">
-          Your order is in production.
+          {order.status === "Cancelled" ? "This order was cancelled." : "Your order is in production."}
         </h1>
         <p className="text-[15px] leading-[1.6] text-[var(--muted)] sm:text-[17px]">
-          A demo confirmation, no real charge was made.
+          {order.status === "Cancelled"
+            ? "As agreed in the demo, nothing was charged and nothing will ship."
+            : "A demo confirmation, no real charge was made."}
         </p>
       </div>
 
@@ -83,7 +85,7 @@ function OrderConfirmation({ order }: { order: OrderRecord }) {
 }
 
 /** Fulfilment stages plus the dispatch promise. */
-function OrderProgress() {
+function OrderProgress({ status }: { status: OrderRecord["status"] }) {
   return (
     <section
       aria-labelledby="order-progress"
@@ -93,10 +95,12 @@ function OrderProgress() {
         <h2 id="order-progress" className="lux-eyebrow text-[var(--lime)]">
           Progress
         </h2>
-        <span className="text-[13px] text-[var(--muted)]">Dispatch within 48 hours</span>
+        {status === "Cancelled" ? null : (
+          <span className="text-[13px] text-[var(--muted)]">Dispatch within 48 hours</span>
+        )}
       </div>
 
-      <OrderTimeline />
+      <OrderTimeline status={status} />
     </section>
   );
 }

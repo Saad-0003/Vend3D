@@ -1616,3 +1616,69 @@ upload type/size refusals plus a real repo GLB accepted through hidden inputs
 discard-to-baseline sticky bar. The U4 spec's disabled "New product" assertion
 became a real-link assertion. Unit totals 241â†’263; e2e green across both
 engines except the two pre-existing three-d exclusions.
+
+### D-096 - U6: the admin order screens share the checkout's `vend3d-orders` envelope through AdminOrdersService
+
+**What:** the orders list (`/admin/orders`), the order detail
+(`/admin/orders/[id]`, replacing the U4 `PagePlaceholder`), the status
+timeline/updater and internal notes land as Phase 1B's last task. Data flows
+through `AdminOrdersService` (`createLocalAdminOrdersService({ storage, now })`)
+over the SAME `vend3d-orders` `{ state: { orders }, version: 0 }` envelope the
+checkout's `useOrdersStore` persists - the admin edits records in place, so
+the customer's `/order/[id]` reflects each change on its next hydrate, and
+Phase 10 swaps only the service body.
+
+**Demo status vocabulary (maps to the planned enum):** `Placed | Processing |
+Shipped | Delivered | Cancelled` on `OrderRecord.status` (previously the
+single `"Placed"` literal). ARCHITECTURE.md §5's Order enum is only
+`PENDING / PAID / FAILED / CANCELLED` (a checkout-transaction state); the
+demo's fulfilment words map as `Placed<->PAID` (D-048: `placeOrder` stays the
+only writer of an initial PAID), `Cancelled<->CANCELLED`, while
+Processing/Shipped/Delivered are fulfilment states beyond the MVP schema -
+Phase 10's server admin either extends the enum or reads a fulfilment
+side-table. `placeOrder` still seeds `statusHistory: [{ status: "Placed",
+at: createdAt }]`, so pre-U6 records normalize from their `createdAt`.
+
+**Transitions are limited to the demo states (plan.md Phase 10's stricter
+`PAID->CANCELLED` remotes server-side):** forward-only
+`Placed->Processing->Shipped->Delivered`, cancel allowed only before shipment,
+Delivered/Cancelled terminal. Every change appends a timestamped
+`statusHistory` entry; the customer timeline `order-timeline.tsx` now renders
+the same four words (replacing U1's decorative "Proofing/Production/Dispatched"
+stage labels, which claimed progress the store never had) with a quiet
+cancelled variant, and the screen's heading switches to "This order was
+cancelled."
+
+**Other notes:** list search matches id or the customer email (the customer
+history selector stays untouched; admin selectors live in
+`lib/admin/orders-ops.ts` and reuse U1's `ORDER_PAGE_SIZE` load-more triplet);
+payment renders as `cardBrandLabel` + last4 only; per-item "Download design
+JSON" exports `{ orderId, itemId, product, quantity, configuration }`
+(`lib/orders/design-export.ts`) - the serialisable v1 Configuration contract;
+the dashboard's last "Soon" quick action ("View all orders") became a real
+link and the U4 spec's Soon-row/placeholder assertions were brought up to the
+built sidebar. Lenience follows D-094/D-095: corrupt payload reads as empty
+demo data, blocked storage returns a friendly `{ ok: false, error }`.
+
+**Alternatives rejected:** a separate `vend3d-admin-orders` key (two stores
+writing one order breaks the single-writer contract and the customer page
+would never see the change); deriving states from `statusHistory` only
+(pre-U6 records would render empty timelines); rendering cancelled orders as
+"final with toast only" (the confirm copy is explicit that cancellation is the
+demo's only near-irreversible step, and the customer page says it honestly).
+
+**Tests:** `tests/unit/admin-orders.test.ts` (22) pins the transition map
+(forward path, out-of-map rejection leaving the record untouched, cancel
+before shipment only, terminal cancelled/Delivered, unknown id, unknown status
+value), history append + envelope non-interference, notes (append, blank and
+>500-char rejection), corrupt/legacy/missing-envelope lenience, blocked-store
+write errors and newest-first listing. `tests/e2e/admin-orders.spec.ts` (6,
+both engines) walks place-order -> admin status change -> customer timeline,
+and pins pagination/search/filter/sort, the confirmed inline change landing in
+the envelope, a terminal row without transitions, item/config/last4 detail
+rendering with a real JSON download, the final-state disabled updater, and the
+not-found panel. The three U4-era templates tests (Soon button, placeholder
+detail, mobile sheet) were updated to the built reality. Unit totals 263->287;
+e2e green across both engines except the pre-existing three-d failures (the
+user's in-flight hero edits) and the known studio leave-guard flake, which
+passes in isolation.

@@ -144,10 +144,9 @@ test.describe("admin dashboard", () => {
     await expect(table.getByText("Bilal Ahmed", { exact: true })).toBeVisible();
     await expect(table.getByText("$61.00", { exact: true })).toBeVisible();
 
-    // Honesty check after U5: "New product" is a real link; "View all orders"
-    // stays a disabled Soon button until U6.
+    // Honesty check after U6: both quick actions are real links now.
     await expect(page.getByTestId("admin-quick-new-product")).toBeVisible();
-    await expect(page.getByRole("button", { name: /View all orders/ })).toBeDisabled();
+    await expect(page.getByTestId("admin-quick-orders")).toBeVisible();
   });
 
   test("an empty browser shows the empty state, not a broken dashboard", async ({ page }) => {
@@ -159,15 +158,16 @@ test.describe("admin dashboard", () => {
     await expect(page.getByLabel("Overview stats")).toContainText("Total orders");
   });
 
-  test("an order row opens the detail placeholder in the admin frame", async ({ page }) => {
+  test("an order row opens the order detail screen in the admin frame (U6)", async ({ page }) => {
     await seedAdminSession(page);
     await page.goto("/admin");
 
     await page.getByRole("table").getByRole("link", { name: "#A1" }).click(SLOW);
 
     await expect(page).toHaveURL(/\/admin\/orders\/ord-a1$/, SLOW);
-    await expect(page.getByRole("heading", { name: "Order detail" })).toBeVisible(SLOW);
-    // The crumb narrates the section the interim screen belongs to.
+    // The U4 placeholder became the real back-office detail: the header shows
+    // the order id, and the crumb still narrates the section.
+    await expect(page.getByTestId("admin-order-id")).toHaveText("ord-a1", SLOW);
     await expect(page.getByRole("navigation", { name: "Breadcrumb" })).toContainText("Orders");
   });
 });
@@ -198,11 +198,12 @@ test.describe("mobile admin shell", () => {
     await menu.click();
     const sheet = page.getByRole("dialog");
     await expect(sheet).toBeVisible(SLOW);
-    // The sheet lists the same three destinations as the desktop sidebar,
-    // including the visible-but-disabled "Soon" rows.
+    // The sheet lists the same three destinations as the desktop sidebar —
+    // all built since U6, so no "Soon" rows remain.
     await expect(sheet.getByRole("link", { name: "Dashboard" })).toBeVisible();
-    await expect(sheet.getByText("Products")).toBeVisible();
-    await expect(sheet.getByText("Soon").first()).toBeVisible();
+    await expect(sheet.getByRole("link", { name: "Products" })).toBeVisible();
+    await expect(sheet.getByRole("link", { name: "Orders" })).toBeVisible();
+    await expect(sheet.getByText("Soon")).toHaveCount(0);
 
     // Close via the sheet's own close button, then re-open and close by
     // Escape: both the pointer and the keyboard exit are real.

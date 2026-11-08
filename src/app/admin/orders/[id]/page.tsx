@@ -1,24 +1,20 @@
 import type { Metadata } from "next";
 
-import { PagePlaceholder } from "@/components/shared/page-placeholder";
+import { OrderDetailScreen } from "@/components/admin/orders/order-detail";
 
 export const metadata: Metadata = {
-  title: "Order detail",
+  title: "Order detail — Admin",
+  description: "One demo order: items, status history, the demo updater and internal notes.",
 };
 
+type Params = Promise<{ id: string }>;
+
 /**
- * `/admin/orders/[id]` — reached from the dashboard's recent-orders table.
- * The real detail view is U6 (list + detail + status updater, plan.md), so
- * this keeps the linked route navigable in the same placeholder the /admin
- * tree itself used before U4 (D-019's pattern): the shell, guard and
- * breadcrumbs are real; the screen is not yet.
+ * `/admin/orders/[id]` (U6) — replaces the U4 PagePlaceholder. The shell,
+ * guard and breadcrumbs (including the not-found panel) were already real;
+ * `params` is awaited per the Next 15 contract the customer route follows.
  */
-export default function AdminOrderDetailPage() {
-  return (
-    <PagePlaceholder
-      eyebrow="Orders"
-      title="Order detail"
-      description="The orders list and this detail view arrive with U6 — status history, line items and the limited demo status updater."
-    />
-  );
+export default async function AdminOrderDetailPage({ params }: { params: Params }) {
+  const { id } = await params;
+  return <OrderDetailScreen id={id} />;
 }
