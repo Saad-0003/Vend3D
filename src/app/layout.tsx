@@ -5,8 +5,7 @@ import { CartDrawer } from "@/components/shared/cart-drawer";
 import { OfflineNotice } from "@/components/system/offline-notice";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SmoothScroll } from "@/components/smooth-scroll";
-import { SiteHeader } from "@/components/shared/site-header";
-import { SiteFooter } from "@/components/shared/site-footer";
+import { SiteChrome } from "@/components/shared/site-chrome";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -55,11 +54,13 @@ export default function RootLayout({
             >
               Skip to content
             </a>
-            <SiteHeader />
-            <main id="main" className="flex-1">
-              {children}
-            </main>
-            <SiteFooter />
+            {/* Header/footer mount per route group: hidden on /admin, whose
+                back-office frame (U4) carries its own top bar. */}
+            <SiteChrome>
+              <main id="main" className="flex-1">
+                {children}
+              </main>
+            </SiteChrome>
             <Toaster position="bottom-center" />
             <CartDrawer />
             <OfflineNotice />

@@ -176,7 +176,7 @@ test.describe("forbidden gate", () => {
     await expect(page).toHaveURL(/(\/account|\/auth\/check-email)/, SLOW);
 
     await page.goto("/admin");
-    await expect(page.getByRole("heading", { name: "Back office" })).toBeVisible(SLOW);
+    await expect(page.getByRole("heading", { name: "Dashboard." })).toBeVisible(SLOW);
     await expect(page).toHaveURL(/\/admin/, SLOW);
   });
 });

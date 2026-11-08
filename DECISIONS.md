@@ -1496,3 +1496,45 @@ walk, resend cooldown, non-admin → `/forbidden`, forced expiry → dialog → 
 `orders.spec.ts` seeds the session via `addInitScript` instead of walking the sign-up UI, because
 sign-up no longer lands on `/shop` and the in-flight soft push breaks the following `goto` on
 WebKit (same interruption class as D-084).
+
+### D-094 - The /admin tree gets its own back-office frame on the AdminService seam
+
+**What:** the Phase 1B U4 admin shell replaces `/admin`'s placeholder: a fixed sidebar (Dashboard
+link; Products/Orders visible but disabled with a "Soon" chip naming their phases U5/U6), a top
+bar (breadcrumbs, "Back to store", the account menu), a mobile slide-in sheet (radix `Dialog`,
+the same slide-in pattern as `cart-drawer.tsx`), and a "Demo data from this browser" banner on
+every admin route. The dashboard reads totals through the new `AdminService` interface -
+`createLocalAdminService({ storage, readProducts })` over the zustand stores' persisted
+`{ state, version }` envelopes - so Phase 10 swaps the service body, not the screen. The whole
+`/admin` tree is guarded by `RequireAdmin` from `admin/layout.tsx`.
+
+**Why / scope notes:**
+- The storefront chrome (header/footer) does not mount on `/admin` (`site-chrome.tsx`, a
+  `usePathname` gate around the root layout's existing components): the admin top bar is the
+  only chrome there, so the logo and the account menu never appear twice. The navbar and footer
+  themselves are untouched.
+- "New product" / "View all orders" quick actions and the sidebar's Products/Orders items are
+  disabled-with-"Soon" rather than links into unbuilt routes - the same honesty rule the U3
+  Google button used. The recent-orders row *does* link to `/admin/orders/[id]`, so that route
+  ships as a PagePlaceholder ("arrives with U6") rather than a 404; the screen behind it stays
+  U6 scope.
+- A corrupt or partial storage payload reads as empty demo data (the lenience zustand rehydrate
+  gives the storefront), but a *blocked* storage propagates as the dashboard's error state with
+  a retry - "all zeros" would lie about data the browser actually holds.
+- Products count reads the static catalog via an injectable `readProducts` so Phase 4's query is
+  a drop-in; console says this is demo data (banner), not an authoritative store.
+
+**Alternatives rejected:** a `(storefront)` route-group refactor to move the header/footer (a
+repo-wide mechanical move, not a targeted diff) vs selectively hiding the two components -
+chose the gate; rendering the storefront header above the admin shell (duplicate logo + account
+menu in one screen); linking the unbuilt orders list ("/admin/orders" would 404 today); enabling
+the email-revenue split on stat cards (no per-order server seams exist yet).
+
+**Tests:** `tests/unit/admin-service.test.ts` pins the aggregation (cents, newest-first via
+checkout's `sortOrdersNewest`, latest-5 slice, corrupt-payload lenience, throwing storage ?
+rejection ? error state, explicit `null` storage = the SSR rejection path). `tests/e2e/admin.spec.ts`
+pins: the admin's seeded dashboard (stats, latest-three table, disabled "Soon" actions), the
+non-admin bounce to `/forbidden`, an empty browser rendering the empty state, the order-row link
+into the placeholder, and on a 360px viewport the sheet opening via button and closing via both
+its close button and Escape. Seeds note: an init script must be literal-only - module constants
+do not exist in the page world, and a throwing seed silently reads as "not signed in".
