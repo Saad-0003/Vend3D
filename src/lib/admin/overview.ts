@@ -1,4 +1,3 @@
-import type { Product } from "@/lib/catalog";
 import { sortOrdersNewest, type OrderRecord } from "@/lib/checkout/order";
 import type { SavedDesign } from "@/stores/designs-store";
 
@@ -53,7 +52,12 @@ export function toAdminOrderRow(order: OrderRecord): AdminOrderRow {
  * module default so "latest 5" has one source of truth.
  */
 export function computeAdminOverview(
-  input: { orders: OrderRecord[]; designs: SavedDesign[]; products: Product[] },
+  input: {
+    orders: OrderRecord[];
+    designs: SavedDesign[];
+    /** Only the count is consumed; catalog rows and admin drafts both fit. */
+    products: ReadonlyArray<{ id: string }>;
+  },
   limit: number = RECENT_ORDER_LIMIT,
 ): AdminOverview {
   // `sortOrdersNewest` is the one ordering rule (lib/orders/history.ts reuses

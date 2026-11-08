@@ -1538,3 +1538,81 @@ non-admin bounce to `/forbidden`, an empty browser rendering the empty state, th
 into the placeholder, and on a 360px viewport the sheet opening via button and closing via both
 its close button and Escape. Seeds note: an init script must be literal-only - module constants
 do not exist in the page world, and a throwing seed silently reads as "not signed in".
+
+### D-095 - U5: the admin products screens read and write a CatalogAdminService seam
+
+**What:** the products list (`/admin/products`), the one create/edit form
+(`/admin/products/new`, `/admin/products/[id]`) and its upload UI replace the
+sidebar's "Soon" row (which is now a real link; dashboard "New product" became
+a real quick action). Data flows through `CatalogAdminService`
+(`createLocalCatalogAdminService({ storage, readCatalog })`) - the same swap
+contract as D-094's AdminService. Records live under
+`vend3d-admin-products` as a `{ state: { records }, version: 0 }` envelope;
+edits to a static catalog product persist as an override keyed by its catalog
+id, so "Edit" always starts from what the storefront actually shows, and the
+four seeds are never eliminated from the list.
+
+**Why / scope notes:**
+- **Three statuses, not two.** The prompt's table said "Active or Draft", but
+  the Archive action needed somewhere to *put* a product and a way to restore
+  it: status is `active | draft | archived`, the chip/filter show all three
+  (round-trip verifiable), and archive is a list-level confirm, not a delete.
+  A duplicate of an archived source reopens as a draft. This also matches
+  Phase 10's soft-delete contract (active=false) better than demoting archive
+  into Draft.
+- **The product id is the initial slug and never renames.** Slug edits change
+  the record's slug; the id stays put, so detail links (and later order
+  history) survive renames - the catalog seeds already work this way.
+- **Demo upload caps are smaller than the server's.** plan.md §10 caps GLBs at
+  15 MB, but ~5 MB of shared localStorage cannot hold a 15 MB data URL, so the
+  demo caps are 1.5 MB (model) and 400 KB (card image), surfaced in the zone
+  copy and validated inline. Phase 10's server-side limit and magic-bytes pass
+  replace these; the zod rules in `product-schema.ts` are the shared skeleton.
+- **The live preview is the studio's real `ProductCanvas`** (dynamically
+  imported, `ssr:false`) fed a `ProductConfig` built from the form snapshot;
+  an uploaded data URL flows straight through the existing GLTF loader's
+  `fetch`, and three's cache is isolated per file by keying the canvas on the
+  upload. A catalog product previews its bundled GLB; a product without one
+  shows a "placeholder model" panel. No second 3D component.
+- **The customization block mirrors `ProductConfig` 1:1** (part id/label/
+  default colour/mesh names/finishable+gloss range, decal zones, engrave
+  on/off). Extras and the details accordion are not editable in U5 - a
+  duplicate inherits theirs; a fresh product gets safe defaults.
+- **Validation is one contract, two surfaces:** basics via react-hook-form +
+  zodResolver (RHF owns focus-first-error; customization then runs its zod
+  schema and scrolls/focuses the first invalid control, reduced-motion aware),
+  all landing in the same `CatalogProductDraft`.
+- **The dirty-leave guard was re-housed, not extracted:** use-dirty-leave.ts
+  replicates the studio's beforeunload + capture-phase link interception +
+  three-way dialog (AGENTS' three-similar-lines rule; a shared hook waits for
+  a third user).
+- **A row's "busy" ref-guard was dropped:** `(alive)` refs break under React
+  StrictMode's double mount (cleanup never re-arms), silently skipping the
+  toast/reload and leaving rows disabled forever in dev. React 18 makes
+  unmounted setState a no-op, so there is nothing to guard against.
+- **Dashboard coherence:** AdminService's `readProducts` default now reads the
+  merged catalog-admin list (`{ id }` shape), so the "Products" stat counts
+  what the products screen shows - prompts rule 2's seam pattern extended one
+  inch, and `computeAdminOverview` only ever consumed the count.
+
+**Alternatives rejected:** storing uploads as object URLs (dies on reload; the
+record must survive), a hand-rolled preview three component (duplicates the
+studio viewer), separating the form per tab/screen, an explicit archived
+option in create (service demotes it; the Select still shows all three for
+edits so an archived product's status never silently flips on save).
+
+**Tests:** `tests/unit/admin-catalog.test.ts` (22) pins money in cents
+("12.99"→1299, the $10,000 cap), slugify/uniqueSlug across catalog ids, the
+three zod schemas (inline-ready messages, corrupt-record dropping), the merged
+list/service behaviours (override writes, id-stability, archive→draft
+duplicates, capture/restore, corrupt payload lenience, a blocked store turning
+into a friendly `{ ok: false, error }` instead of an unhandled rejection) and
+the preview-config bridge. `tests/e2e/admin-products.spec.ts` (6) pins the
+seeded list + banner + filters, duplicate/archive/restore with confirmation,
+create (inline errors + focus-first-error, slug auto-follow, price dollars→
+cents, the ≥1-part rule), edit with seeded parts and a persisted price change,
+upload type/size refusals plus a real repo GLB accepted through hidden inputs
+(`data-testid` hooks; `setInputFiles` cannot target the zone button), and the
+discard-to-baseline sticky bar. The U4 spec's disabled "New product" assertion
+became a real-link assertion. Unit totals 241→263; e2e green across both
+engines except the two pre-existing three-d exclusions.

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { PackageOpen, ShoppingBag, Shapes, ReceiptText } from "lucide-react";
+import { PackageOpen, Plus, ShoppingBag, Shapes, ReceiptText } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -92,11 +92,19 @@ function DashboardContent({ overview }: { overview: AdminOverview }) {
         <StatCard label="Saved designs" value={String(overview.designCount)} icon={<Shapes className="size-4" strokeWidth={1.5} aria-hidden />} />
       </section>
 
-      {/* Pages these open don't exist yet (U5/U6) — visible, disabled, "Soon",
-          matching the sidebar so the dashboard never dead-ends a click into a 404. */}
+      {/* U5 shipped the products screen, so "New product" is a real link now;
+          "View all orders" stays Soon until U6 (same honesty as the sidebar). */}
       <TooltipProvider>
         <div className="flex flex-wrap items-center gap-3" role="group" aria-label="Quick actions">
-          <SoonButton label="New product" />
+          <Button
+            asChild
+            className="h-11 rounded-full bg-[var(--ivory)] px-6 text-[15px] text-[var(--ink)] hover:bg-[var(--ivory)]/90"
+          >
+            <Link href="/admin/products/new" data-testid="admin-quick-new-product">
+              <Plus className="mr-1.5 size-4" strokeWidth={1.5} aria-hidden />
+              New product
+            </Link>
+          </Button>
           <SoonButton label="View all orders" />
         </div>
       </TooltipProvider>
@@ -179,9 +187,9 @@ function StatCard({
 }
 
 /**
- * Disabled-with-tooltip, not a hidden action: Products arrives in U5 and the
- * orders list in U6 — the tooltips say exactly that, so the planning intent is
- * visible instead of the row silently doing nothing.
+ * Disabled-with-tooltip, not a hidden action: the orders list arrives in U6 —
+ * the tooltip says exactly that, so the planning intent stays visible instead
+ * of the row silently doing nothing.
  */
 function SoonButton({ label }: { label: string }) {
   return (
@@ -199,7 +207,7 @@ function SoonButton({ label }: { label: string }) {
         </span>
       </TooltipTrigger>
       <TooltipContent side="bottom" className="lux text-[12px]">
-        {label === "New product" ? "Ships with Products (U5)" : "Ships with Orders (U6)"}
+        Ships with Orders (U6)
       </TooltipContent>
     </Tooltip>
   );

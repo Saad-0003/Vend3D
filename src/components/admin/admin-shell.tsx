@@ -210,8 +210,18 @@ function AdminBreadcrumbs({ pathname }: { pathname: string | null }) {
   );
 }
 
-/** An order id reads badly in a crumb; every section label is dictionary-based. */
+/**
+ * An order id reads badly in a crumb, so ids map to their screen's name; every
+ * section label is dictionary-based. Product ids surface as "Edit product"
+ * (the id itself stays in the `title` tooltip).
+ */
 function crumbLabel(segment: string): string {
-  const labels: Record<string, string> = { orders: "Orders", products: "Products" };
-  return segment.startsWith("ord-") ? "Order detail" : (labels[segment] ?? segment);
+  const labels: Record<string, string> = {
+    orders: "Orders",
+    products: "Products",
+    new: "New product",
+  };
+  if (labels[segment]) return labels[segment];
+  if (segment.startsWith("ord-")) return "Order detail";
+  return "Edit product";
 }

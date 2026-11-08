@@ -1,5 +1,3 @@
-import type { Product } from "@/lib/catalog";
-import { listProducts } from "@/lib/catalog";
 import type { OrderRecord } from "@/lib/checkout/order";
 import type { SavedDesign } from "@/stores/designs-store";
 
@@ -7,6 +5,7 @@ import {
   computeAdminOverview,
   type AdminOverview,
 } from "@/lib/admin/overview";
+import { catalogAdminService } from "@/lib/admin/catalog-service";
 
 /**
  * The admin read seam (plan.md Phase 1B U4). Phase 10 replaces this file with
@@ -36,8 +35,12 @@ export type LocalAdminServiceInput = {
    * into its error state; test doubles inject either shape.
    */
   storage?: AdminStorage | null;
-  /** Defaults to the static catalog; Phase 4's query is a drop-in. */
-  readProducts?: () => Promise<Product[]> | Product[];
+  /**
+   * Defaults to the merged admin product list (catalog + this browser's
+   * drafts, U5) so the dashboard's "Products" counts what the products screen
+   * shows. Phase 4's query is a drop-in.
+   */
+  readProducts?: () => Promise<Array<{ id: string }>> | Array<{ id: string }>;
 };
 
 /** Persisted wrappers — the zustand `partialize` shapes, version 0. */
@@ -81,7 +84,9 @@ function readDesigns(storage: AdminStorage | null): SavedDesign[] {
 export function createLocalAdminService(
   input: LocalAdminServiceInput = {},
 ): AdminService {
-  const readProducts = input.readProducts ?? listProducts;
+  const readProducts =
+    input.readProducts ??
+    (async () => (await catalogAdminService.listProducts()).map((p) => ({ id: p.id })));
 
   return {
     async getOverview(): Promise<AdminOverview> {

@@ -144,8 +144,9 @@ test.describe("admin dashboard", () => {
     await expect(table.getByText("Bilal Ahmed", { exact: true })).toBeVisible();
     await expect(table.getByText("$61.00", { exact: true })).toBeVisible();
 
-    // The unbuilt screens are honest: quick actions are disabled with "Soon".
-    await expect(page.getByRole("button", { name: /New product/ })).toBeDisabled();
+    // Honesty check after U5: "New product" is a real link; "View all orders"
+    // stays a disabled Soon button until U6.
+    await expect(page.getByTestId("admin-quick-new-product")).toBeVisible();
     await expect(page.getByRole("button", { name: /View all orders/ })).toBeDisabled();
   });
 

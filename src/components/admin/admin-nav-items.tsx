@@ -6,10 +6,10 @@ import { LayoutDashboard, PackageOpen, ShoppingBag } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
- * The sidebar's three destinations (plan.md Phase 1B U4). Only the dashboard
- * exists yet; Products (U5) and Orders (U6) render as visible "Soon" entries —
- * the phases that build them are their disabled labels, so the roadmap stays
- * legible without stubs pretending to work (AGENTS §3 scope discipline).
+ * The sidebar's three destinations (plan.md Phase 1B U4). The dashboard and,
+ * as of U5, the products screen are built; Orders renders as a visible "Soon"
+ * entry until U6 — the phase that builds it is its disabled label, so the
+ * roadmap stays legible without stubs pretending to work (AGENTS §3 scope).
  */
 export type AdminNavItem = {
   href: string;
@@ -23,9 +23,14 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
   { href: "/admin/orders", label: "Orders", icon: ShoppingBag },
 ];
 
-/** Only built routes can be active; today that is exactly `/admin`. */
+/** Routes whose screens exist. Products joined in U5; Orders in U6. */
+const BUILT_HREFS = new Set(["/admin", "/admin/products"]);
+
+/** Only built routes can be active; deep links (new, [id]) light their section. */
 function isActive(pathname: string | null, item: AdminNavItem): boolean {
-  return item.href === "/admin" && pathname === "/admin";
+  if (!pathname) return false;
+  if (item.href === "/admin") return pathname === "/admin";
+  return pathname === item.href || pathname.startsWith(`${item.href}/`);
 }
 
 const rowBase = "flex items-center gap-3 rounded-[12px] px-3 py-2.5 text-[13px] transition-colors";
@@ -48,7 +53,7 @@ export function AdminNavList({
     <nav aria-label="Admin" className={className}>
       <ul className="flex flex-col gap-1">
         {ADMIN_NAV_ITEMS.map((item) => {
-          const built = item.href === "/admin";
+          const built = BUILT_HREFS.has(item.href);
           const active = isActive(pathname, item);
           const Icon = item.icon;
           return (
